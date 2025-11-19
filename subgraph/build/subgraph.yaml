@@ -1,0 +1,76 @@
+specVersion: 0.0.5
+schema:
+  file: schema.graphql
+dataSources:
+  - kind: ethereum/contract
+    name: SovryFactory
+    network: story-aeneid
+    source:
+      address: "0xCfc99DFD727beE966beB1f11E838f5fCb4413707"
+      abi: SovryFactory
+      startBlock: 11269900
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - Factory
+        - Pool
+        - Token
+      abis:
+        - name: SovryFactory
+          file: SovryFactory\abis\SovryFactory.json
+        - name: ERC20
+          file: SovryFactory\abis\ERC20.json
+      eventHandlers:
+        - event: PairCreated(indexed address,indexed address,address,uint256)
+          handler: handlePairCreated
+      file: SovryFactory\SovryFactory.wasm
+  - kind: ethereum/contract
+    name: RoyaltyModule
+    network: story-aeneid
+    source:
+      address: "0xD2f60c40fEbccf6311f8B47c4f2Ec6b040400086"
+      abi: RoyaltyModule
+      startBlock: 900000
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - RoyaltyPayment
+        - IPAsset
+      abis:
+        - name: RoyaltyModule
+          file: RoyaltyModule\abis\RoyaltyModule.json
+      eventHandlers:
+        - event: RoyaltyPaid(address,address,address,address,uint256,uint256)
+          handler: handleRoyaltyPaid
+      file: SovryFactory\SovryFactory.wasm
+templates:
+  - kind: ethereum/contract
+    name: SovryPool
+    network: story-aeneid
+    source:
+      abi: SovryPool
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - Swap
+        - Mint
+        - Burn
+      abis:
+        - name: SovryPool
+          file: SovryPool\abis\SovryPool.json
+      eventHandlers:
+        - event: Swap(indexed address,uint256,uint256,uint256,uint256,indexed address)
+          handler: handleSwap
+        - event: Sync(uint112,uint112)
+          handler: handleSync
+        - event: Mint(indexed address,uint256,uint256)
+          handler: handleMint
+        - event: Burn(indexed address,uint256,uint256,indexed address)
+          handler: handleBurn
+      file: SovryFactory\SovryFactory.wasm

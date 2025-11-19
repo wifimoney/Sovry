@@ -1,0 +1,67 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { getIPAssetById } from '@/services/storyProtocolAPI';
+
+export async function GET(
+  request: NextRequest,
+  { params }: { params: { ipId: string } }
+) {
+  try {
+    const { ipId } = params;
+    
+    if (!ipId) {
+      return NextResponse.json(
+        { error: 'IP ID is required' },
+        { status: 400 }
+      );
+    }
+
+    // Fetch IP asset data from Story Protocol API
+    const ipAsset = await getIPAssetById(ipId);
+    
+    if (!ipAsset) {
+      return NextResponse.json(
+        { error: 'IP Asset not found' },
+        { status: 404 }
+      );
+    }
+
+    // Format metadata for frontend consumption
+    const metadata = {
+      ipId: ipAsset.ipId,
+      name: ipAsset.name || ipAsset.title || 'Untitled IP Asset',
+      description: ipAsset.description || 'No description available',
+      image: ipAsset.nftMetadata?.image?.cachedUrl || ipAsset.nftMetadata?.image?.originalUrl || '/placeholder-ip.png',
+      thumbnail: ipAsset.nftMetadata?.image?.thumbnailUrl || ipAsset.nftMetadata?.image?.cachedUrl || '/placeholder-ip.png',
+      category: 'IP Asset', // Can be derived from metadata attributes
+      owner: ipAsset.ownerAddress,
+      tokenId: ipAsset.tokenId,
+      collection: {
+        name: ipAsset.nftMetadata?.collection?.name || 'Unknown Collection',
+        slug: ipAsset.nftMetadata?.collection?.slug || 'unknown',
+        bannerImageUrl: ipAsset.nftMetadata?.collection?.bannerImageUrl || '/placeholder-banner.png'
+      },
+      attributes: ipAsset.nftMetadata?.raw?.attributes || [],
+      licenseTerms: ipAsset.licenses?.[0]?.terms || null,
+      createdAt: ipAsset.createdAt,
+      registrationDate: ipAsset.registrationDate,
+      uri: ipAsset.uri,
+      metadataUri: ipAsset.ipaMetadataUri,
+      // Additional visual metadata
+      animation: ipAsset.nftMetadata?.animation || null,
+      externalUrl: ipAsset.nftMetadata?.collection?.externalUrl || null
+    };
+
+    // Cache the response for 5 minutes
+    const response = NextResponse.json(metadata);
+    response.headers.set('Cache-Control', 'public, max-age=300, stale-while-revalidate=600');
+    
+    return response;
+    
+  } catch (error) {
+    console.error('Error fetching IP asset metadata:', error);
+    return NextResponse.json(
+      { error: 'Failed to fetch IP asset metadata' },
+      { status: 500 }
+    );
+  }
+}

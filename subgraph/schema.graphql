@@ -1,0 +1,113 @@
+type Factory @entity {
+  id: ID!
+  poolCount: BigInt!
+  totalVolumeUSD: BigDecimal!
+  totalLiquidityUSD: BigDecimal!
+}
+
+type Pool @entity {
+  id: ID!
+  token0: Token!
+  token1: Token!
+  reserve0: BigDecimal!
+  reserve1: BigDecimal!
+  totalSupply: BigDecimal!
+  volumeUSD: BigDecimal!
+  txCount: BigInt!
+  createdAtTimestamp: BigInt!
+  createdAtBlockNumber: BigInt!
+}
+
+type Token @entity {
+  id: ID!
+  symbol: String!
+  name: String!
+  decimals: BigInt!
+  totalLiquidity: BigDecimal!
+  volume: BigDecimal!
+  volumeUSD: BigDecimal!
+  txCount: BigInt!
+  
+  # [BARU] Link ke IP Asset (Jika token ini adalah Royalty Token)
+  ipAsset: IPAsset
+}
+
+type Swap @entity(immutable: true) {
+  id: ID!
+  transaction: Transaction!
+  timestamp: BigInt!
+  pool: Pool!
+  token0: Token!
+  token1: Token!
+  sender: Bytes!
+  recipient: Bytes!
+  origin: Bytes!
+  amount0: BigDecimal!
+  amount1: BigDecimal!
+  amountUSD: BigDecimal!
+  logIndex: BigInt!
+}
+
+type Transaction @entity(immutable: true) {
+  id: ID!
+  timestamp: BigInt!
+  gasPrice: BigInt!
+}
+
+type Mint @entity(immutable: true) {
+  id: ID!
+  transaction: Transaction!
+  timestamp: BigInt!
+  pool: Pool!
+  token0: Token!
+  token1: Token!
+  owner: Bytes!
+  sender: Bytes!
+  origin: Bytes!
+  amount0: BigDecimal!
+  amount1: BigDecimal!
+  amountUSD: BigDecimal!
+  logIndex: BigInt!
+}
+
+type Burn @entity(immutable: true) {
+  id: ID!
+  transaction: Transaction!
+  timestamp: BigInt!
+  pool: Pool!
+  token0: Token!
+  token1: Token!
+  owner: Bytes!
+  sender: Bytes!
+  origin: Bytes!
+  amount0: BigDecimal!
+  amount1: BigDecimal!
+  amountUSD: BigDecimal!
+  logIndex: BigInt!
+}
+
+# ---------------------------------------------------------
+# TAMBAHAN KHUSUS SOVRY (Yield Tracking)
+# ---------------------------------------------------------
+
+type IPAsset @entity {
+  id: ID!                     # Address IP Asset
+  royaltyVault: Bytes!        # Alamat Vault
+  totalRevenueWIP: BigInt!    # Total pendapatan
+  
+  # Relasi balik ke Token definition
+  token: Token
+  
+  # History pembayaran
+  payments: [RoyaltyPayment!]! @derivedFrom(field: "targetIp")
+}
+
+type RoyaltyPayment @entity(immutable: true) {
+  id: ID!                     # TxHash + LogIndex
+  targetIp: IPAsset!          # Relasi ke IP Asset
+  token: Bytes!               # Token pembayaran ($WIP)
+  amount: BigInt!             # Jumlah
+  payer: Bytes!               # Pengirim
+  timestamp: BigInt!          # Waktu
+  txHash: Bytes!              # Hash Transaksi
+}

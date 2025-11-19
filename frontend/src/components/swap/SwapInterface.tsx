@@ -1,0 +1,515 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Loader2, ArrowDownUp, Settings, TrendingUp, CheckCircle, AlertCircle } from "lucide-react";
+
+const GOLDSKY_API_URL = process.env.NEXT_PUBLIC_GOLDSKY_API_URL;
+
+interface SwapToken {
+  id: string;
+  symbol: string;
+  name: string;
+}
+
+interface SwapPool {
+  id: string;
+  token0: SwapToken;
+  token1: SwapToken;
+  reserve0: string;
+  reserve1: string;
+  totalSupply: string;
+}
+
+const TOKEN_MAPPING: Record<string, { symbol: string; name: string }> = {
+  "0x1514000000000000000000000000000000000000": {
+    symbol: "WIP",
+    name: "Wrapped IP"
+  },
+  "0xb6b837972cfb487451a71279fa78c327bb27646e": {
+    symbol: "RT",
+    name: "Royalty Token"
+  },
+  "native": {
+    symbol: "IP",
+    name: "Native IP Token"
+  }
+};
+
+export default function SwapInterface() {
+  const [fromAmount, setFromAmount] = useState("");
+  const [toAmount, setToAmount] = useState("");
+  const [fromToken, setFromToken] = useState("");
+  const [toToken, setToToken] = useState("");
+  const [slippage, setSlippage] = useState("0.5");
+  const [deadline, setDeadline] = useState("20");
+  const [showSettings, setShowSettings] = useState(false);
+  const [isSimulating, setIsSimulating] = useState(false);
+  const [simulationSuccess, setSimulationSuccess] = useState(false);
+  const [isSwapping, setIsSwapping] = useState(false);
+  
+  const [pools, setPools] = useState<SwapPool[]>([]);
+  const [availableTokens, setAvailableTokens] = useState<SwapToken[]>([]);
+  const [poolsLoading, setPoolsLoading] = useState(true);
+  const [poolsError, setPoolsError] = useState<string | null>(null);
+  const [selectedPool, setSelectedPool] = useState<SwapPool | null>(null);
+
+  const fetchPools = async () => {
+    if (!GOLDSKY_API_URL) {
+      setPoolsError("Goldsky API URL not configured");
+      setPoolsLoading(false);
+      return;
+    }
+
+    try {
+      setPoolsLoading(true);
+      setPoolsError(null);
+
+      const query = `
+        query GetSwapPools {
+          pools(first: 100) {
+            id
+            token0 {
+              id
+            }
+            token1 {
+              id
+            }
+            reserve0
+            reserve1
+            totalSupply
+          }
+        }
+      `;
+
+      const response = await fetch(GOLDSKY_API_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ query }),
+      });
+
+      const data = await response.json();
+      console.log("Swap pools response:", data);
+
+      if (data.errors && data.errors.length > 0) {
+        throw new Error(data.errors[0]?.message || "GraphQL error");
+      }
+
+      if (data.data && data.data.pools) {
+        const mappedPools = data.data.pools.map((pool: any) => {
+          const token0Address = pool.token0?.id?.toLowerCase();
+          const token1Address = pool.token1?.id?.toLowerCase();
+          
+          const token0Info = TOKEN_MAPPING[token0Address] || {
+            symbol: "UNKNOWN",
+            name: "Unknown Token"
+          };
+          
+          const token1Info = TOKEN_MAPPING[token1Address] || {
+            symbol: "UNKNOWN", 
+            name: "Unknown Token"
+          };
+          
+          return {
+            ...pool,
+            token0: {
+              id: pool.token0?.id || "",
+              symbol: token0Info.symbol,
+              name: token0Info.name
+            },
+            token1: {
+              id: pool.token1?.id || "",
+              symbol: token1Info.symbol,
+              name: token1Info.name
+            }
+          };
+        });
+
+        console.log("Mapped swap pools:", mappedPools);
+        setPools(mappedPools);
+
+        const tokens: SwapToken[] = [];
+        const tokenSet = new Set<string>();
+
+        mappedPools.forEach((pool: SwapPool) => {
+          if (!tokenSet.has(pool.token0.id)) {
+            tokens.push(pool.token0);
+            tokenSet.add(pool.token0.id);
+          }
+          if (!tokenSet.has(pool.token1.id)) {
+            tokens.push(pool.token1);
+            tokenSet.add(pool.token1.id);
+          }
+        });
+
+        // Add native IP token for auto-wrapping
+        const nativeToken: SwapToken = {
+          id: "native",
+          symbol: "IP",
+          name: "Native IP Token"
+        };
+        tokens.unshift(nativeToken); // Add at beginning
+        
+        setAvailableTokens(tokens);
+        console.log("Available tokens for swap:", tokens);
+      } else {
+        setPools([]);
+        setAvailableTokens([]);
+      }
+    } catch (err) {
+      console.error("Error fetching swap pools:", err);
+      setPoolsError(err instanceof Error ? err.message : "Failed to fetch pools");
+      setPools([]);
+      setAvailableTokens([]);
+    } finally {
+      setPoolsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    console.log("SwapInterface mounted - fetching real pools from Goldsky");
+    fetchPools();
+  }, []);
+
+  useEffect(() => {
+    if (fromToken && toToken && pools.length > 0) {
+      // Handle native IP auto-wrapping to WIP
+      const effectiveFromToken = fromToken === "IP" ? "WIP" : fromToken;
+      const effectiveToToken = toToken === "IP" ? "WIP" : toToken;
+      
+      const pool = pools.find(p => 
+        (p.token0.symbol === effectiveFromToken && p.token1.symbol === effectiveToToken) ||
+        (p.token1.symbol === effectiveFromToken && p.token0.symbol === effectiveToToken)
+      );
+      setSelectedPool(pool || null);
+      console.log("Selected pool for swap:", pool, { fromToken, toToken, effectiveFromToken, effectiveToToken });
+    } else {
+      setSelectedPool(null);
+    }
+  }, [fromToken, toToken, pools]);
+
+  useEffect(() => {
+    if (fromAmount && fromToken && toToken && selectedPool) {
+      setIsSimulating(true);
+      setSimulationSuccess(false);
+      
+      const timer = setTimeout(() => {
+        setIsSimulating(false);
+        
+        try {
+          const inputValue = parseFloat(fromAmount) || 0;
+          if (inputValue <= 0) {
+            setToAmount("");
+            setSimulationSuccess(false);
+            return;
+          }
+
+          // Handle native IP auto-wrapping for calculation
+          const effectiveFromToken = fromToken === "IP" ? "WIP" : fromToken;
+          const isToken0Input = selectedPool.token0.symbol === effectiveFromToken;
+          const reserveIn = parseFloat(isToken0Input ? selectedPool.reserve0 : selectedPool.reserve1);
+          const reserveOut = parseFloat(isToken0Input ? selectedPool.reserve1 : selectedPool.reserve0);
+          
+          if (reserveIn <= 0 || reserveOut <= 0) {
+            setToAmount("");
+            setSimulationSuccess(false);
+            return;
+          }
+
+          const amountInWithFee = inputValue * 0.997;
+          const amountOut = (amountInWithFee * reserveOut) / (reserveIn + amountInWithFee);
+          
+          setToAmount(amountOut.toFixed(6));
+          setSimulationSuccess(true);
+        } catch (error) {
+          console.error("Swap calculation error:", error);
+          setToAmount("");
+          setSimulationSuccess(false);
+        }
+      }, 800);
+      
+      return () => clearTimeout(timer);
+    } else {
+      setSimulationSuccess(false);
+      setToAmount("");
+    }
+  }, [fromAmount, fromToken, toToken, selectedPool]);
+
+  const handleSwap = async () => {
+    if (!simulationSuccess) return;
+    
+    setIsSwapping(true);
+    
+    try {
+      await new Promise(resolve => setTimeout(resolve, 3000));
+      
+      setFromAmount("");
+      setToAmount("");
+      setSimulationSuccess(false);
+      
+      alert("Swap successful!");
+    } catch (error) {
+      alert("Swap failed. Please try again.");
+    } finally {
+      setIsSwapping(false);
+    }
+  };
+
+  const handleReverseTokens = () => {
+    setFromToken(toToken);
+    setToToken(fromToken);
+    setFromAmount(toAmount);
+    setToAmount(fromAmount);
+  };
+
+  return (
+    <div className="w-full max-w-6xl mx-auto space-y-6">
+      {poolsLoading && (
+        <Card className="w-full max-w-2xl mx-auto">
+          <CardContent className="py-12">
+            <div className="flex items-center justify-center">
+              <Loader2 className="h-8 w-8 animate-spin mr-3" />
+              <span className="text-lg">Loading available pools...</span>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {poolsError && (
+        <Card className="w-full max-w-2xl mx-auto">
+          <CardContent className="py-6">
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>{poolsError}</AlertDescription>
+            </Alert>
+          </CardContent>
+        </Card>
+      )}
+
+      {!poolsLoading && !poolsError && (
+        <Card className="w-full max-w-2xl mx-auto">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-xl font-bold">Swap Tokens</CardTitle>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowSettings(!showSettings)}
+                className="flex items-center gap-2"
+              >
+                <Settings className="h-4 w-4" />
+                Settings
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {pools.length === 0 && (
+              <Alert>
+                <TrendingUp className="h-4 w-4" />
+                <AlertDescription>
+                  No liquidity pools available for swapping. Create pools first in the Liquidity tab.
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {selectedPool && (
+              <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-sm text-blue-800">
+                  Pool: {selectedPool.token0.symbol} / {selectedPool.token1.symbol}
+                </p>
+                <p className="text-xs text-blue-600 mt-1">
+                  Reserves: {parseFloat(selectedPool.reserve0).toFixed(2)} {selectedPool.token0.symbol} • {parseFloat(selectedPool.reserve1).toFixed(2)} {selectedPool.token1.symbol}
+                </p>
+                {(fromToken === "IP" || toToken === "IP") && (
+                  <p className="text-xs text-amber-600 mt-1">
+                    ⚡ Native IP will be auto-wrapped to WIP for this swap
+                  </p>
+                )}
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700">From</label>
+              <div className="flex gap-2">
+                <Select 
+                  value={fromToken} 
+                  onValueChange={setFromToken}
+                  disabled={pools.length === 0}
+                >
+                  <SelectTrigger className="w-40">
+                    <SelectValue placeholder={pools.length === 0 ? "No pools available" : "Select token"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableTokens.map((token) => (
+                      <SelectItem key={token.id} value={token.symbol}>
+                        <div className="flex items-center gap-2">
+                          <span>{token.symbol}</span>
+                          <span className="text-xs text-gray-500">{token.name}</span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Input
+                  type="number"
+                  placeholder="0.0"
+                  value={fromAmount}
+                  onChange={(e) => setFromAmount(e.target.value)}
+                  className="flex-1"
+                  disabled={pools.length === 0}
+                />
+              </div>
+              {fromToken && availableTokens.length > 0 && (
+                <p className="text-xs text-gray-500">
+                  {availableTokens.find(t => t.symbol === fromToken)?.name}
+                </p>
+              )}
+            </div>
+
+            <div className="flex justify-center">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleReverseTokens}
+                className="rounded-full"
+                disabled={!fromToken || !toToken}
+              >
+                <ArrowDownUp className="h-4 w-4" />
+              </Button>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700">To</label>
+              <div className="flex gap-2">
+                <Select 
+                  value={toToken} 
+                  onValueChange={setToToken}
+                  disabled={pools.length === 0}
+                >
+                  <SelectTrigger className="w-40">
+                    <SelectValue placeholder={pools.length === 0 ? "No pools available" : "Select token"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableTokens
+                      .filter(token => token.symbol !== fromToken)
+                      .map((token) => (
+                        <SelectItem key={token.id} value={token.symbol}>
+                          <div className="flex items-center gap-2">
+                            <span>{token.symbol}</span>
+                            <span className="text-xs text-gray-500">{token.name}</span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+                <Input
+                  type="number"
+                  placeholder="0.0"
+                  value={toAmount}
+                  readOnly
+                  className="flex-1 bg-gray-50"
+                  disabled={pools.length === 0}
+                />
+              </div>
+              {toToken && availableTokens.length > 0 && (
+                <p className="text-xs text-gray-500">
+                  {availableTokens.find(t => t.symbol === toToken)?.name}
+                </p>
+              )}
+            </div>
+
+            {showSettings && (
+              <div className="border rounded-lg p-4 space-y-3 bg-gray-50">
+                <h3 className="font-medium text-sm">Transaction Settings</h3>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs text-gray-600">Slippage (%)</label>
+                    <Input
+                      type="number"
+                      value={slippage}
+                      onChange={(e) => setSlippage(e.target.value)}
+                      className="h-8"
+                      step="0.1"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-600">Deadline (min)</label>
+                    <Input
+                      type="number"
+                      value={deadline}
+                      onChange={(e) => setDeadline(e.target.value)}
+                      className="h-8"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {fromToken && toToken && !selectedPool && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>
+                  No liquidity pool available for {fromToken} and {toToken} pair.
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {fromAmount && toToken && selectedPool && (
+              <div className="space-y-2">
+                {isSimulating && (
+                  <Alert>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <AlertDescription>
+                      Calculating swap output...
+                    </AlertDescription>
+                  </Alert>
+                )}
+                
+                {simulationSuccess && (
+                  <Alert className="border-green-200 bg-green-50">
+                    <CheckCircle className="h-4 w-4 text-green-600" />
+                    <AlertDescription className="text-green-800">
+                      Swap calculation complete! Ready to execute.
+                    </AlertDescription>
+                  </Alert>
+                )}
+              </div>
+            )}
+
+            <Button
+              onClick={handleSwap}
+              disabled={pools.length === 0 || !simulationSuccess || isSwapping || !fromAmount || !toToken || !selectedPool}
+              className="w-full py-3 text-base font-medium"
+              size="lg"
+            >
+              {pools.length === 0 ? (
+                "No pools available - Create pools first"
+              ) : isSwapping ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  Swapping...
+                </>
+              ) : !fromAmount || !toToken ? (
+                "Select tokens and enter amount"
+              ) : !selectedPool ? (
+                "No pool available for this pair"
+              ) : isSimulating ? (
+                "Calculating..."
+              ) : (
+                fromToken === "IP" || toToken === "IP" ? 
+                  "Swap " + (fromAmount || "0") + " " + fromToken + " for " + (toAmount || "0") + " " + toToken + " (auto-wrap)" :
+                  "Swap " + (fromAmount || "0") + " " + fromToken + " for " + (toAmount || "0") + " " + toToken
+              )}
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}

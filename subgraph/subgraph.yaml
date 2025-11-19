@@ -1,0 +1,81 @@
+specVersion: 0.0.5
+schema:
+  file: ./schema.graphql
+dataSources:
+  # 1. SOVRY FACTORY (Mendeteksi Pool Baru)
+  - kind: ethereum/contract
+    name: SovryFactory
+    network: story-aeneid
+    source:
+      address: "0xCfc99DFD727beE966beB1f11E838f5fCb4413707" # <--- GANTI INI
+      abi: SovryFactory
+      startBlock:  11269900 
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - Factory
+        - Pool
+        - Token
+      abis:
+        - name: SovryFactory
+          file: ./abis/SovryFactory.json
+        - name: ERC20
+          file: ./abis/ERC20.json
+      eventHandlers:
+        - event: PairCreated(indexed address,indexed address,address,uint256)
+          handler: handlePairCreated
+      file: ./src/pool.ts
+
+  # 2. ROYALTY MODULE (Mendeteksi Uang Masuk)
+  - kind: ethereum/contract
+    name: RoyaltyModule
+    network: story-aeneid
+    source:
+      address: "0xD2f60c40fEbccf6311f8B47c4f2Ec6b040400086" # Alamat Resmi Story
+      abi: RoyaltyModule
+      startBlock: 900000 
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - RoyaltyPayment
+        - IPAsset
+      abis:
+        - name: RoyaltyModule
+          file: ./abis/RoyaltyModule.json
+      eventHandlers:
+        - event: RoyaltyPaid(address,address,address,address,uint256,uint256)
+          handler: handleRoyaltyPaid
+      file: ./src/pool.ts
+
+templates:
+  # 3. POOL TEMPLATE (Mendeteksi Swap di dalam Pool)
+  - kind: ethereum/contract
+    name: SovryPool
+    network: story-aeneid
+    source:
+      abi: SovryPool
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - Swap
+        - Mint
+        - Burn
+      abis:
+        - name: SovryPool
+          file: ./abis/SovryPool.json
+      eventHandlers:
+        - event: Swap(indexed address,uint256,uint256,uint256,uint256,indexed address)
+          handler: handleSwap
+        - event: Sync(uint112,uint112)
+          handler: handleSync
+        - event: Mint(indexed address,uint256,uint256)
+          handler: handleMint
+        - event: Burn(indexed address,uint256,uint256,indexed address)
+          handler: handleBurn
+      file: ./src/pool.ts
