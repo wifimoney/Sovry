@@ -15,6 +15,5 @@ yarn-error.log
 .svelte-kit/
 .idea/
 .vscode/
-prompt.md
 .windsurf
 deployments
