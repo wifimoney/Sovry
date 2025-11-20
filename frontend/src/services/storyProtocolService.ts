@@ -3,7 +3,7 @@
 
 import { StoryClient } from '@story-protocol/core-sdk';
 import { StoryClient as StoryClientType } from '@story-protocol/core-sdk';
-import { createPublicClient, http, Address, parseEther, encodeFunctionData, custom } from 'viem';
+import { createPublicClient, http, Address, parseEther, encodeFunctionData, custom, formatEther } from 'viem';
 import { erc20Abi } from 'viem';
 
 // Environment variables
@@ -863,6 +863,8 @@ export async function createPoolDynamic(
     console.log('Token:', actualRoyaltyToken);
     console.log('Amount Token:', amountToken);
     console.log('Amount IP:', amountIP);
+    console.log('Parsed IP Amount (wei):', parseEther(amountIP));
+    console.log('Parsed IP Amount (ether):', formatEther(parseEther(amountIP)));
     
     const txHash = await walletClient.sendTransaction({
       to: SOVRY_ROUTER_ADDRESS as Address,
