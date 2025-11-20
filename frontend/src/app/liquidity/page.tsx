@@ -515,6 +515,11 @@ Try checking your wallet directly or refresh the page!`);
 
       console.log('🚀 Starting Story Protocol pool creation with Dynamic SDK');
       console.log('IP Asset:', ipAsset);
+      console.log('🔍 Frontend Input Debug:');
+      console.log('Royalty Amount (state):', royaltyAmount);
+      console.log('WIP Amount (state):', wipAmount);
+      console.log('Royalty Amount (type):', typeof royaltyAmount);
+      console.log('WIP Amount (type):', typeof wipAmount);
 
       // Step 1: Approve Royalty Token for Sovry Router
       console.log('Step 1: Approving Royalty Token for Router...');
@@ -533,6 +538,10 @@ Try checking your wallet directly or refresh the page!`);
 
       // Step 2: Create Royalty Token + WIP pair using addLiquidityIP
       console.log('Step 2: Creating Royalty Token + WIP pair (IP will be wrapped to WIP)...');
+      console.log('🔍 createPoolDynamic Parameters:');
+      console.log('Royalty Token Address:', ipAsset.royaltyVaultAddress);
+      console.log('Royalty Amount:', royaltyAmount);
+      console.log('WIP Amount:', wipAmount);
       
       const poolResult = await createPoolDynamic(
         ipAsset.royaltyVaultAddress, // Royalty Token address for pair
