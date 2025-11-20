@@ -54,14 +54,6 @@ npm run dev
 - **Trading**: Swap interface for IP asset tokens
 - **Revenue**: Royalty claiming and tracking
 
-## 🎯 Project Rules
-
-1. **Always use Dynamic.xyz** for wallet integration
-2. **Always use Story Protocol SDK** for IP asset management  
-3. **Always use Goldsky** for subgraph data
-4. **Never use mock data** - all data from blockchain APIs
-5. **Never kill ports** - avoid long compilation times
-
 ## 📚 Documentation
 
 - [Story Protocol Docs](https://docs.story.foundation)
