@@ -15,7 +15,8 @@ interface IPAssetPoolProps {
 }
 
 export default function IPAssetPool({ onPairCreated }: IPAssetPoolProps) {
-  const { user, isAuthenticated } = useDynamicContext();
+  const { primaryWallet } = useDynamicContext();
+  const isAuthenticated = !!primaryWallet;
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -83,15 +84,15 @@ export default function IPAssetPool({ onPairCreated }: IPAssetPoolProps) {
 
   // Load wallet info when authenticated
   React.useEffect(() => {
-    if (isAuthenticated && user) {
+    if (isAuthenticated && primaryWallet) {
       setWalletInfo({
-        address: user.walletAddress || 'Connected',
+        address: primaryWallet?.address || 'Connected',
         balance: 'N/A', // Dynamic doesn't expose balance directly
       });
     } else {
       setWalletInfo(null);
     }
-  }, [isAuthenticated, user]);
+  }, [isAuthenticated, primaryWallet]);
 
   return (
     <Card className="w-full max-w-2xl">

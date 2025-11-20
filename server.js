@@ -1,10 +1,11 @@
-console.log('Starting server...');
+console.log('Starting Sovry API Server...');
 console.log('Express version:', require('express/package.json').version);
 
 const express = require('express');
 const cors = require('cors');
 
-// Use the updated routes.js with 8 pools
+// Note: Worker should be run separately on VPS
+// This server only handles API routes
 const apiRoutes = require('./routes');
 
 console.log('Dependencies loaded successfully');

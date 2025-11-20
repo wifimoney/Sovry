@@ -1,10 +1,29 @@
 import { Redis } from '@upstash/redis'
 
-// Initialize Upstash Redis client
-const redis = new Redis({
-  url: process.env.UPSTASH_REDIS_REST_URL!,
-  token: process.env.UPSTASH_REDIS_REST_TOKEN!,
-})
+// Initialize Upstash Redis client with error handling and fallback
+let redis: Redis | null = null;
+let redisEnabled = true;
+
+// Try to initialize Redis, but don't fail if configuration is wrong
+try {
+  if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
+    redis = new Redis({
+      url: process.env.UPSTASH_REDIS_REST_URL,
+      token: process.env.UPSTASH_REDIS_REST_TOKEN,
+      retry: {
+        retries: 2,
+        backoff: (retryCount) => 1000 * retryCount,
+      },
+    });
+  } else {
+    console.warn('⚠️ Redis environment variables not found, caching disabled');
+    redisEnabled = false;
+  }
+} catch (error) {
+  console.warn('⚠️ Failed to initialize Redis, caching disabled:', error);
+  redis = null;
+  redisEnabled = false;
+}
 
 // Cache keys
 const CACHE_KEYS = {
@@ -57,16 +76,71 @@ export interface SwapTransaction {
   txHash: string
 }
 
+// Validate Redis connection and environment variables
+const validateRedisConfig = (): boolean => {
+  const url = process.env.UPSTASH_REDIS_REST_URL
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN
+  
+  if (!url || !token) {
+    // Redis is optional - don't log errors in development
+    if (process.env.NODE_ENV === 'production') {
+      console.warn('⚠️ Redis configuration missing: UPSTASH_REDIS_REST_URL or UPSTASH_REDIS_REST_TOKEN')
+    }
+    return false
+  }
+  
+  if (!url.startsWith('https://')) {
+    console.error('❌ Invalid Redis URL format. Must start with https://')
+    return false
+  }
+  
+  return true
+}
+
 export class RedisService {
+  // --- CONNECTION VALIDATION ---
+  static isConfigValid(): boolean {
+    return validateRedisConfig() && redisEnabled && redis !== null
+  }
+
+  static async testConnection(): Promise<boolean> {
+    try {
+      if (!this.isConfigValid()) {
+        console.warn('⚠️ Redis not configured or disabled, skipping connection test')
+        return false
+      }
+      
+      // Simple ping test
+      const testKey = 'sovry:test:connection'
+      const testValue = 'test-' + Date.now()
+      
+      await redis!.setex(testKey, 10, testValue)
+      const retrieved = await redis!.get(testKey)
+      await redis!.del(testKey)
+      
+      const success = retrieved === testValue
+      console.log(success ? '✅ Redis connection test passed' : '❌ Redis connection test failed')
+      return success
+    } catch (error) {
+      console.error('❌ Redis connection test failed:', error)
+      return false
+    }
+  }
+
   // --- POOL CACHING ---
   static async cachePoolsData(pools: CachedPool[]): Promise<void> {
     try {
+      if (!this.isConfigValid()) {
+        console.warn('⚠️ Redis not configured or disabled, skipping cache operation')
+        return
+      }
+
       const poolsWithTimestamp = pools.map(pool => ({
         ...pool,
         cached_at: Date.now()
       }))
       
-      await redis.setex(
+      await redis!.setex(
         CACHE_KEYS.POOLS,
         CACHE_TTL.POOLS,
         JSON.stringify(poolsWithTimestamp)
@@ -75,16 +149,29 @@ export class RedisService {
       console.log(`✅ Cached ${pools.length} pools to Redis`)
     } catch (error) {
       console.error('❌ Failed to cache pools data:', error)
+      // Don't rethrow - allow application to continue without cache
     }
   }
 
   static async getCachedPoolsData(): Promise<CachedPool[] | null> {
     try {
-      const cached = await redis.get(CACHE_KEYS.POOLS)
-      if (cached) {
-        const pools = JSON.parse(cached as string) as CachedPool[]
-        console.log(`✅ Retrieved ${pools.length} pools from Redis cache`)
-        return pools
+      if (!this.isConfigValid()) {
+        console.warn('⚠️ Redis not configured, skipping cache')
+        return null
+      }
+
+      const cached = await redis!.get(CACHE_KEYS.POOLS)
+      if (cached && typeof cached === 'string') {
+        try {
+          const pools = JSON.parse(cached) as CachedPool[]
+          console.log(`✅ Retrieved ${pools.length} pools from Redis cache`)
+          return pools
+        } catch (parseError) {
+          console.error('❌ Failed to parse cached pools JSON:', parseError)
+          // Clear corrupted cache
+          await redis!.del(CACHE_KEYS.POOLS)
+          return null
+        }
       }
       return null
     } catch (error) {
@@ -95,12 +182,17 @@ export class RedisService {
 
   static async cacheGoldskyResponse(response: any): Promise<void> {
     try {
+      if (!this.isConfigValid()) {
+        console.warn('⚠️ Redis not configured or disabled, skipping cache operation')
+        return
+      }
+
       const responseWithTimestamp = {
         ...response,
         cached_at: Date.now()
       }
       
-      await redis.setex(
+      await redis!.setex(
         CACHE_KEYS.GOLDSKY_RESPONSE,
         CACHE_TTL.GOLDSKY_RESPONSE,
         JSON.stringify(responseWithTimestamp)
@@ -109,16 +201,29 @@ export class RedisService {
       console.log('✅ Cached Goldsky response to Redis')
     } catch (error) {
       console.error('❌ Failed to cache Goldsky response:', error)
+      // Don't rethrow - allow application to continue without cache
     }
   }
 
   static async getCachedGoldskyResponse(): Promise<any | null> {
     try {
-      const cached = await redis.get(CACHE_KEYS.GOLDSKY_RESPONSE)
-      if (cached) {
-        const response = JSON.parse(cached as string)
-        console.log('✅ Retrieved Goldsky response from Redis cache')
-        return response
+      if (!this.isConfigValid()) {
+        console.warn('⚠️ Redis not configured, skipping cache')
+        return null
+      }
+
+      const cached = await redis!.get(CACHE_KEYS.GOLDSKY_RESPONSE)
+      if (cached && typeof cached === 'string') {
+        try {
+          const response = JSON.parse(cached)
+          console.log('✅ Retrieved Goldsky response from cache')
+          return response
+        } catch (parseError) {
+          console.error('❌ Failed to parse cached Goldsky response JSON:', parseError)
+          // Clear corrupted cache
+          await redis!.del(CACHE_KEYS.GOLDSKY_RESPONSE)
+          return null
+        }
       }
       return null
     } catch (error) {
@@ -130,12 +235,17 @@ export class RedisService {
   // --- USER DATA CACHING ---
   static async cacheUserPools(userAddress: string, pools: string[]): Promise<void> {
     try {
+      if (!this.isConfigValid()) {
+        console.warn('⚠️ Redis not configured or disabled, skipping cache operation')
+        return
+      }
+
       const userPoolsData = {
         pools,
         cached_at: Date.now()
       }
       
-      await redis.setex(
+      await redis!.setex(
         CACHE_KEYS.USER_POOLS(userAddress.toLowerCase()),
         CACHE_TTL.USER_DATA,
         JSON.stringify(userPoolsData)
@@ -144,12 +254,18 @@ export class RedisService {
       console.log(`✅ Cached user pools for ${userAddress}`)
     } catch (error) {
       console.error('❌ Failed to cache user pools:', error)
+      // Don't rethrow - allow application to continue without cache
     }
   }
 
   static async getCachedUserPools(userAddress: string): Promise<string[] | null> {
     try {
-      const cached = await redis.get(CACHE_KEYS.USER_POOLS(userAddress.toLowerCase()))
+      if (!this.isConfigValid()) {
+        console.warn('⚠️ Redis not configured, skipping cache')
+        return null
+      }
+
+      const cached = await redis!.get(CACHE_KEYS.USER_POOLS(userAddress.toLowerCase()))
       if (cached) {
         const data = JSON.parse(cached as string)
         console.log(`✅ Retrieved user pools for ${userAddress} from cache`)
@@ -165,10 +281,15 @@ export class RedisService {
   // --- SWAP HISTORY ---
   static async addSwapToHistory(userAddress: string, swap: SwapTransaction): Promise<void> {
     try {
+      if (!this.isConfigValid()) {
+        console.warn('⚠️ Redis not configured or disabled, skipping cache operation')
+        return
+      }
+
       const key = CACHE_KEYS.SWAP_HISTORY(userAddress.toLowerCase())
       
       // Get existing history
-      const existing = await redis.get(key)
+      const existing = await redis!.get(key)
       let swapHistory: SwapTransaction[] = []
       
       if (existing) {
@@ -189,7 +310,7 @@ export class RedisService {
         updated_at: Date.now()
       }
       
-      await redis.setex(
+      await redis!.setex(
         key,
         CACHE_TTL.USER_DATA,
         JSON.stringify(historyData)
@@ -198,12 +319,18 @@ export class RedisService {
       console.log(`✅ Added swap to history for ${userAddress}`)
     } catch (error) {
       console.error('❌ Failed to add swap to history:', error)
+      // Don't rethrow - allow application to continue without cache
     }
   }
 
   static async getUserSwapHistory(userAddress: string): Promise<SwapTransaction[]> {
     try {
-      const cached = await redis.get(CACHE_KEYS.SWAP_HISTORY(userAddress.toLowerCase()))
+      if (!this.isConfigValid()) {
+        console.warn('⚠️ Redis not configured, skipping cache')
+        return []
+      }
+
+      const cached = await redis!.get(CACHE_KEYS.SWAP_HISTORY(userAddress.toLowerCase()))
       if (cached) {
         const data = JSON.parse(cached as string)
         console.log(`✅ Retrieved swap history for ${userAddress}`)
@@ -219,12 +346,17 @@ export class RedisService {
   // --- TOKEN PRICES ---
   static async cacheTokenPrices(prices: Record<string, number>): Promise<void> {
     try {
+      if (!this.isConfigValid()) {
+        console.warn('⚠️ Redis not configured or disabled, skipping cache operation')
+        return
+      }
+
       const pricesWithTimestamp = {
         prices,
         cached_at: Date.now()
       }
       
-      await redis.setex(
+      await redis!.setex(
         CACHE_KEYS.TOKEN_PRICES,
         CACHE_TTL.TOKEN_PRICES,
         JSON.stringify(pricesWithTimestamp)
@@ -233,12 +365,18 @@ export class RedisService {
       console.log('✅ Cached token prices to Redis')
     } catch (error) {
       console.error('❌ Failed to cache token prices:', error)
+      // Don't rethrow - allow application to continue without cache
     }
   }
 
   static async getCachedTokenPrices(): Promise<Record<string, number> | null> {
     try {
-      const cached = await redis.get(CACHE_KEYS.TOKEN_PRICES)
+      if (!this.isConfigValid()) {
+        console.warn('⚠️ Redis not configured, skipping cache')
+        return null
+      }
+
+      const cached = await redis!.get(CACHE_KEYS.TOKEN_PRICES)
       if (cached) {
         const data = JSON.parse(cached as string)
         console.log('✅ Retrieved token prices from cache')
@@ -254,6 +392,11 @@ export class RedisService {
   // --- CACHE MANAGEMENT ---
   static async clearCache(pattern?: string): Promise<void> {
     try {
+      if (!this.isConfigValid()) {
+        console.warn('⚠️ Redis not configured or disabled, skipping cache operation')
+        return
+      }
+
       if (pattern) {
         // Clear specific pattern (Note: Upstash Redis may not support SCAN)
         console.log(`🧹 Clearing cache pattern: ${pattern}`)
@@ -261,7 +404,7 @@ export class RedisService {
         // Clear all Sovry cache keys
         const keys = Object.values(CACHE_KEYS).filter(key => typeof key === 'string')
         for (const key of keys) {
-          await redis.del(key as string)
+          await redis!.del(key as string)
         }
         console.log('🧹 Cleared all Sovry cache')
       }
@@ -276,8 +419,16 @@ export class RedisService {
     uptime: string
   }> {
     try {
-      const poolsExist = await redis.exists(CACHE_KEYS.POOLS)
-      const goldskyExist = await redis.exists(CACHE_KEYS.GOLDSKY_RESPONSE)
+      if (!this.isConfigValid()) {
+        return {
+          pools: false,
+          goldsky: false,
+          uptime: 'Redis disabled'
+        }
+      }
+
+      const poolsExist = await redis!.exists(CACHE_KEYS.POOLS)
+      const goldskyExist = await redis!.exists(CACHE_KEYS.GOLDSKY_RESPONSE)
       
       return {
         pools: poolsExist === 1,
@@ -297,12 +448,17 @@ export class RedisService {
   // --- HEALTH CHECK ---
   static async healthCheck(): Promise<boolean> {
     try {
+      if (!this.isConfigValid()) {
+        console.warn('⚠️ Redis not configured or disabled, skipping health check')
+        return false
+      }
+
       const testKey = 'sovry:health:test'
       const testValue = Date.now().toString()
       
-      await redis.set(testKey, testValue, { ex: 10 })
-      const retrieved = await redis.get(testKey)
-      await redis.del(testKey)
+      await redis!.set(testKey, testValue, { ex: 10 })
+      const retrieved = await redis!.get(testKey)
+      await redis!.del(testKey)
       
       return retrieved === testValue
     } catch (error) {

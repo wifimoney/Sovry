@@ -31,29 +31,17 @@ export function Providers({ children }: { children: ReactNode }) {
   return (
     <DynamicContextProvider
       settings={{
-        environmentId: process.env.NEXT_PUBLIC_DYNAMIC_ENVIRONMENT_ID,
-        apiKey: process.env.NEXT_PUBLIC_DYNAMIC_API_KEY,
+        environmentId: process.env.NEXT_PUBLIC_DYNAMIC_ENVIRONMENT_ID || "",
         initialAuthenticationMode: "connect-only",
         enableVisitTrackingOnConnectOnly: false,
         walletConnectors: [EthereumWalletConnectors],
         overrides: {
           evmNetworks,
         },
-        appMetadata: {
-          name: "Sovry DEX",
-          description: "Decentralized exchange for IP assets",
-          logoUrl: "https://example.com/logo.png",
-          url: "http://localhost:3000",
-        },
         events: {
           onEmbeddedWalletCreated: (args) => {
             console.log('Embedded wallet created:', args);
           },
-        },
-        // Ensure MetaMask detection works properly
-        settings: {
-          ensureAuthenticated: false,
-          enableWalletConnect: true,
         },
       }}
     >

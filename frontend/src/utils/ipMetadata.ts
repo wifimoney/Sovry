@@ -47,7 +47,7 @@ const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 export async function getIPAssetMetadata(ipId: string): Promise<IPAssetMetadata | null> {
   // Check cache first
   const cached = metadataCache.get(ipId);
-  if (cached && Date.now() - cached.createdAt.getTime() < CACHE_DURATION) {
+  if (cached && Date.now() - new Date(cached.createdAt).getTime() < CACHE_DURATION) {
     return cached;
   }
 
@@ -105,7 +105,7 @@ export function clearMetadataCache(ipId?: string): void {
  */
 export function getCachedMetadata(ipId: string): IPAssetMetadata | null {
   const cached = metadataCache.get(ipId);
-  if (cached && Date.now() - cached.createdAt.getTime() < CACHE_DURATION) {
+  if (cached && Date.now() - new Date(cached.createdAt).getTime() < CACHE_DURATION) {
     return cached;
   }
   return null;

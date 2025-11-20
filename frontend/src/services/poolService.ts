@@ -4,6 +4,7 @@ import { privateKeyToAccount } from 'viem/accounts';
 
 // Story Protocol Testnet Configuration
 const STORY_TESTNET = {
+  id: 1315,
   chainId: 1315,
   name: 'Story Testnet',
   nativeCurrency: {

@@ -2,6 +2,7 @@
 // ARCHITECTURE: Separate READ (Backend API) and WRITE (Dynamic Wallet)
 
 import { StoryClient } from '@story-protocol/core-sdk';
+import { StoryClient as StoryClientType } from '@story-protocol/core-sdk';
 import { createPublicClient, http, Address, parseEther, encodeFunctionData } from 'viem';
 import { erc20Abi } from 'viem';
 
@@ -135,13 +136,22 @@ export interface TokenBalance {
 function createStoryProtocolClient(walletAddress?: string) {
   if (!walletAddress) {
     console.warn('No wallet address provided for Story SDK - using read-only client');
-    return new StoryClient({
+    // Try using the static factory method if available
+    return (StoryClient as any).new?.({
+      transport: http(STORY_RPC_URL),
+      chainId: 1315, // Aeneid Testnet
+    }) || new (StoryClient as any)({
       transport: http(STORY_RPC_URL),
       chainId: 1315, // Aeneid Testnet
     });
   }
   
-  return new StoryClient({
+  // Try using the static factory method if available
+  return (StoryClient as any).new?.({
+    transport: http(STORY_RPC_URL),
+    chainId: 1315, // Aeneid Testnet
+    account: walletAddress as Address, // Add connected wallet
+  }) || new (StoryClient as any)({
     transport: http(STORY_RPC_URL),
     chainId: 1315, // Aeneid Testnet
     account: walletAddress as Address, // Add connected wallet
@@ -850,7 +860,7 @@ export async function createPoolWithLiquidity(
   params: PoolCreationParams,
   walletAddress: string,
   signTransaction: (transaction: any) => Promise<string>
-): Promise<{ success: boolean; poolAddress?: string; error?: string }> {
+): Promise<{ success: boolean; poolAddress?: string; transactionHash?: string; error?: string }> {
   try {
     console.log('Creating pool with liquidity:', params, { testingMode: TESTING_MODE });
 
@@ -904,7 +914,7 @@ export async function createPoolWithLiquidity(
     // Build transaction object for Dynamic
     const dynamicTransaction = {
       address: SOVRY_ROUTER_ADDRESS,
-      data: transactionData.request.data,
+      data: transactionData,
       value: `0x${amountETHWei.toString(16)}`, // Convert to hex
     };
 

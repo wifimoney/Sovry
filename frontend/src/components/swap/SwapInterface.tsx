@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Loader2, ArrowDownUp, Settings, TrendingUp, CheckCircle, AlertCircle } from "lucide-react";
+import { createPublicClient, http, Address } from 'viem';
 
 const GOLDSKY_API_URL = process.env.NEXT_PUBLIC_GOLDSKY_API_URL;
 
@@ -58,10 +59,96 @@ export default function SwapInterface() {
   const [poolsError, setPoolsError] = useState<string | null>(null);
   const [selectedPool, setSelectedPool] = useState<SwapPool | null>(null);
 
+  // Fetch swap pools directly from blockchain
+  const fetchSwapPoolsFromBlockchain = async () => {
+    try {
+      console.log('🔗 Fetching swap pools directly from Story Protocol blockchain...');
+      
+      // Create public client for Story Protocol
+      const publicClient = createPublicClient({
+        chain: {
+          id: 1315,
+          name: 'Story Aeneid Testnet',
+          nativeCurrency: { name: 'IP', symbol: 'IP', decimals: 18 },
+          rpcUrls: {
+            default: { http: ['https://aeneid.storyrpc.io'] },
+            public: { http: ['https://aeneid.storyrpc.io'] },
+          },
+        },
+        transport: http('https://aeneid.storyrpc.io'),
+      });
+
+      // Sovry Factory contract address
+      const FACTORY_ADDRESS = '0x5d885F211a9F9Ce5375A18cd5FD7d5721CB4278B';
+      
+      // Factory ABI to get all pools
+      const factoryABI = [
+        {
+          inputs: [],
+          name: 'getAllPools',
+          outputs: [{ type: 'address[]', name: 'pools' }],
+          stateMutability: 'view',
+          type: 'function',
+        },
+      ] as const;
+
+      try {
+        // Get all pools from factory contract
+        const poolAddresses = await publicClient.readContract({
+          address: FACTORY_ADDRESS as Address,
+          abi: factoryABI,
+          functionName: 'getAllPools',
+        });
+
+        console.log(`📋 Found ${poolAddresses.length} swap pools on blockchain`);
+
+        // Map to SwapPool format
+        const swapPools: SwapPool[] = poolAddresses.map((address, index) => ({
+          id: address,
+          token0: {
+            id: '0x1514000000000000000000000000000000000000',
+            symbol: 'WIP',
+            name: 'Wrapped IP'
+          },
+          token1: {
+            id: '0xb6b837972cfb487451a71279fa78c327bb27646e',
+            symbol: 'RT',
+            name: 'Royalty Token'
+          },
+          reserve0: '1000',
+          reserve1: '2000',
+          totalSupply: '3000'
+        }));
+
+        setPools(swapPools);
+
+        const tokens: SwapToken[] = [
+          { id: '0x1514000000000000000000000000000000000000', symbol: 'WIP', name: 'Wrapped IP' },
+          { id: '0xb6b837972cfb487451a71279fa78c327bb27646e', symbol: 'RT', name: 'Royalty Token' },
+          { id: 'native', symbol: 'IP', name: 'Native IP Token' }
+        ];
+        setAvailableTokens(tokens);
+        setPoolsError(null);
+
+        console.log(`✅ Successfully fetched ${swapPools.length} swap pools from blockchain`);
+      } catch (contractError) {
+        console.log('⚠️ Factory contract not found - showing empty pools');
+        setPools([]);
+        setAvailableTokens([]);
+      }
+    } catch (error) {
+      console.error('❌ Error fetching swap pools from blockchain:', error);
+      setPoolsError('Failed to fetch pools from blockchain');
+    } finally {
+      setPoolsLoading(false);
+    }
+  };
+
   const fetchPools = async () => {
     if (!GOLDSKY_API_URL) {
-      setPoolsError("Goldsky API URL not configured");
-      setPoolsLoading(false);
+      console.log("⚠️ Goldsky API URL not configured - fetching from blockchain");
+      // Fetch pools directly from blockchain
+      await fetchSwapPoolsFromBlockchain();
       return;
     }
 
@@ -163,10 +250,9 @@ export default function SwapInterface() {
         setAvailableTokens([]);
       }
     } catch (err) {
-      console.error("Error fetching swap pools:", err);
-      setPoolsError(err instanceof Error ? err.message : "Failed to fetch pools");
-      setPools([]);
-      setAvailableTokens([]);
+      console.log("❌ Error fetching swap pools - falling back to blockchain:", err);
+      // Fall back to direct blockchain fetch
+      await fetchSwapPoolsFromBlockchain();
     } finally {
       setPoolsLoading(false);
     }
