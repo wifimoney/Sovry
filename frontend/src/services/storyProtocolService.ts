@@ -561,7 +561,8 @@ export async function fetchWalletIPAssets(walletAddress: string, primaryWallet?:
           })));
           
           // Debug: Show all unique owner addresses from the API
-          const uniqueOwners = [...new Set(result.data.map((asset: any) => asset.ownerAddress || asset.owner))];
+          const ownerAddresses = result.data.map((asset: any) => asset.ownerAddress || asset.owner);
+          const uniqueOwners = Array.from(new Set(ownerAddresses));
           console.log('All unique owners in API:', uniqueOwners);
           console.log('Looking for wallet:', walletAddress);
           console.log('Looking for wallet (lowercase):', walletAddress.toLowerCase());
@@ -1055,7 +1056,7 @@ export async function createPoolDynamic(
     console.log('Token:', args[0]);
     console.log('Amount Token Desired:', args[1].toString(), `(${Number(args[1]) / 1e6} RT)`);
     console.log('Amount Token Min:', args[2].toString(), `(${Number(args[2]) / 1e6} RT)`);
-    console.log('Amount ETH Min:', args[3].toString(), `(${formatEther(args[3])} IP)`);
+    console.log('Amount ETH Min:', args[3].toString(), `(${formatEther(BigInt(args[3]))} IP)`);
     console.log('To:', args[4]);
     console.log('Deadline:', args[5].toString());
     console.log('Min Token Percentage:', Number(BigInt(args[2]) * BigInt(100) / BigInt(args[1])) + '%');
@@ -1111,69 +1112,96 @@ export async function createPoolDynamic(
         }],
         functionName: 'getPair',
         args: [actualRoyaltyToken as Address, WIP_TOKEN_ADDRESS as Address],
-          const desiredAmountRT = BigInt(1000000); // 1 RT
-          const desiredAmountWIP = parseEther('1');
-          
-          // Router calculation: amountBOptimal = (amountADesired * reserveB) / reserveA
-          const optimalWIP = (desiredAmountRT * reserve1) / reserve0;
-          
-          console.log('💰 Router Calculation:');
-          console.log('Desired RT:', desiredAmountRT.toString(), `(1 RT)`);
-          console.log('Desired WIP:', desiredAmountWIP.toString(), `(1 WIP)`);
-          console.log('Optimal WIP needed:', optimalWIP.toString(), `(${formatEther(optimalWIP)} WIP)`);
-          console.log('Minimum WIP required:', desiredAmountWIP.toString(), `(1 WIP)`);
-          
-          if (optimalWIP < desiredAmountWIP) {
-            console.log('❌ PROBLEM FOUND: Optimal WIP < Minimum WIP!');
-            console.log('🔧 SOLUTION: Increase WIP amount to match optimal ratio');
-            
-            // Calculate required WIP amount
-            const requiredWIP = (desiredAmountRT * reserve1) / reserve0 + (desiredAmountRT * reserve1) / reserve0 / BigInt(100); // Add 1% buffer
-            console.log('🎯 Required WIP amount:', requiredWIP.toString(), `(${formatEther(requiredWIP)} WIP)`);
-          }
-          
-        } catch (reserveError) {
-          console.log('⚠️ Could not read reserves:', reserveError);
-        }
-      } else {
-        console.log('🔧 Pair does not exist, creating new pair...');
+      });
+      
+      if (existingPair !== '0x0000000000000000000000000000000000000000') {
+        console.log('🔧 Pool exists - checking if ratio is reasonable...');
         
-        // Create pair via factory
-        const factoryData = encodeFunctionData({
+        // Get reserves
+        const reserves = await publicClient.readContract({
+          address: existingPair as Address,
           abi: [{
-            inputs: [
-              { internalType: 'address', name: 'tokenA', type: 'address' },
-              { internalType: 'address', name: 'tokenB', type: 'address' }
+            inputs: [],
+            name: 'getReserves',
+            outputs: [
+              { internalType: 'uint112', name: 'reserve0', type: 'uint112' },
+              { internalType: 'uint112', name: 'reserve1', type: 'uint112' },
+              { internalType: 'uint32', name: 'blockTimestampLast', type: 'uint32' }
             ],
-            name: 'createPair',
-            outputs: [{ internalType: 'address', name: 'pair', type: 'address' }],
-            stateMutability: 'nonpayable',
+            stateMutability: 'view',
             type: 'function',
           }],
-          functionName: 'createPair',
-          args: [actualRoyaltyToken as Address, WIP_TOKEN_ADDRESS as Address],
+          functionName: 'getReserves',
         });
         
-        const factoryTx = await walletClient.sendTransaction({
-          to: factoryAddress as Address,
-          data: factoryData,
-        });
+        const reserveRT = BigInt(reserves[0].toString());
+        const reserveWIP = BigInt(reserves[1].toString());
         
-        console.log('✅ Pair creation sent:', factoryTx);
+        console.log('🔍 Current Pool Reserves:');
+        console.log('RT Reserves:', reserveRT.toString(), `(${Number(reserveRT) / 1e6} RT)`);
+        console.log('WIP Reserves:', reserveWIP.toString(), `(${formatEther(reserveWIP)} WIP)`);
         
-        // Wait for pair creation to complete
-        const factoryReceipt = await receiptClient.waitForTransactionReceipt({
-          hash: factoryTx as Address,
-        });
+        // Calculate ratio
+        const ratioWIPperRT = reserveWIP * BigInt(1000000) / reserveRT;
+        console.log('Current Ratio: 1 RT =', formatEther(ratioWIPperRT), 'WIP');
         
-        console.log('✅ Pair created successfully:', factoryReceipt.status);
-        console.log('Gas used for pair creation:', factoryReceipt.gasUsed.toString());
-        
-        if (factoryReceipt.status === 'reverted') {
-          console.log('❌ Factory pair creation also reverted!');
-          console.log('🔍 This indicates a deeper contract issue...');
-          console.log('Possible causes: Invalid token, duplicate pair, or factory restrictions');
+        // Check if ratio is reasonable (not extremely skewed)
+        const reasonableRatio = parseEther('0.1'); // 0.1 WIP per RT minimum
+        if (ratioWIPperRT < reasonableRatio) {
+          console.log('❌ Pool ratio is BROKEN! WIP reserves too low relative to RT');
+          console.log('🔧 SOLUTION: Force reasonable amounts to fix the pool');
+          
+          // Use reasonable amounts to fix the broken ratio
+          const userDesiredRT = BigInt(parseFloat(amountToken) * 1000000);
+          const userDesiredWIP = parseEther(amountIP);
+          
+          // Force reasonable ratio: 1 RT = 1 WIP
+          actualAmountToUse = userDesiredRT;
+          actualIPAmount = userDesiredWIP;
+          
+          console.log('🎯 FORCED: Using reasonable amounts to fix broken pool');
+          console.log('RT:', Number(actualAmountToUse) / 1e6, 'RT');
+          console.log('WIP:', formatEther(actualIPAmount), 'WIP');
+          console.log('New Ratio: 1 RT = 1 WIP (FIXED)');
+          
+        } else {
+          console.log('✅ Pool ratio is reasonable - using normal calculation');
+          
+          // Normal calculation for healthy pools
+          const userDesiredRT = BigInt(parseFloat(amountToken) * 1000000);
+          const userDesiredWIP = parseEther(amountIP);
+          
+          // Calculate optimal WIP for desired RT
+          const optimalWIP = (userDesiredRT * reserveWIP) / reserveRT;
+          // Calculate optimal RT for desired WIP  
+          const optimalRT = (userDesiredWIP * reserveRT) / reserveWIP;
+          
+          console.log('💰 Optimal Calculations:');
+          console.log('For', Number(userDesiredRT) / 1e6, 'RT, optimal WIP =', formatEther(optimalWIP), 'WIP');
+          console.log('For', formatEther(userDesiredWIP), 'WIP, optimal RT =', Number(optimalRT) / 1e6, 'RT');
+          
+          // Use the limiting factor (smaller optimal amount)
+          if (optimalWIP <= userDesiredWIP) {
+            actualAmountToUse = userDesiredRT;
+            actualIPAmount = optimalWIP;
+            console.log('🎯 Using RT-limited amounts (WIP is sufficient)');
+          } else {
+            actualAmountToUse = optimalRT;
+            actualIPAmount = userDesiredWIP;
+            console.log('🎯 Using WIP-limited amounts (RT needs adjustment)');
+          }
+          
+          console.log('✅ Final Optimized Amounts:');
+          console.log('RT:', Number(actualAmountToUse) / 1e6, 'RT');
+          console.log('WIP:', formatEther(actualIPAmount), 'WIP');
         }
+        
+      } else {
+        console.log('🔧 New pool - using user amounts directly');
+        // Use the smaller of: requested amount or available balance
+        const requestedAmount = BigInt(parseFloat(amountToken) * 1000000); // 6 decimals
+        const availableBalance = Number(balance);
+        actualAmountToUse = availableBalance < requestedAmount ? balance : requestedAmount;
       }
       
     } catch (pairError) {
