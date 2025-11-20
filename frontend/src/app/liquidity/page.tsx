@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useDynamicContext, useIsLoggedIn } from "@dynamic-labs/sdk-react-core";
+import { ethers } from "ethers";
 import { Navigation } from "@/components/navigation/Navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Plus, Wallet, AlertCircle, CheckCircle, Crown, TrendingUp, ExternalLink, Unlock, Coins, Droplets, Database } from "lucide-react";
+import { Loader2, Plus, Wallet, AlertCircle, CheckCircle, Crown, TrendingUp, ExternalLink, Unlock, Coins, Droplets, Database, ArrowUpDown, Percent } from "lucide-react";
 import { 
   fetchWalletIPAssets, 
   approveRoyaltyTokensDynamic,
@@ -21,10 +22,10 @@ import {
   TokenBalance,
   PoolCreationParams
 } from "@/services/storyProtocolService";
-import { createWalletClient, http } from "viem";
+import { liquidityService } from "@/services/liquidityService";
 
 // Sovry Router Address for UI display
-const SOVRY_ROUTER_ADDRESS = '0x5d885F211a9F9Ce5375A18cd5FD7d5721CB4278B';
+const SOVRY_ROUTER_ADDRESS = '0x67f00093dEA379B14bE70ef3B12b478107c97349';
 
 // Goldsky API endpoint from env
 const GOLDSKY_API_URL = process.env.NEXT_PUBLIC_GOLDSKY_API_URL;
@@ -48,6 +49,10 @@ interface UserPool {
   volumeUSD: string;
   txCount: string;
   createdAtTimestamp: string;
+  userLpBalance?: string;
+  userLpPercentage?: number;
+  tvlUSD?: number;
+  userTVL?: number;
 }
 
 // Manual token mapping for known addresses
@@ -83,12 +88,24 @@ export default function LiquidityPage() {
   const [poolsLoading, setPoolsLoading] = useState(false);
   const [poolsError, setPoolsError] = useState<string | null>(null);
 
+  // Add/Remove liquidity state for existing pools
+  const [selectedPoolForLiquidity, setSelectedPoolForLiquidity] = useState<UserPool | null>(null);
+  const [liquidityMode, setLiquidityMode] = useState<"add" | "remove">("add");
+  const [liquidityAmount0, setLiquidityAmount0] = useState("");
+  const [liquidityAmount1, setLiquidityAmount1] = useState("");
+  const [liquidityPercentage, setLiquidityPercentage] = useState(0);
+  const [isLiquidityProcessing, setIsLiquidityProcessing] = useState(false);
+  const [liquidityError, setLiquidityError] = useState("");
+  const [liquiditySuccess, setLiquiditySuccess] = useState("");
+
   // Get wallet address from Dynamic
   const walletAddress = primaryWallet?.address;
 
-  // Fetch user pools from Goldsky
+  // Fetch user pools with fallback to existing data
   const fetchUserPools = async () => {
-    if (!GOLDSKY_API_URL || !walletAddress) {
+    console.log("🔍 fetchUserPools called, walletAddress:", walletAddress);
+    if (!walletAddress) {
+      console.log("⚠️ No wallet address - cannot fetch pools");
       return;
     }
 
@@ -96,87 +113,77 @@ export default function LiquidityPage() {
       setPoolsLoading(true);
       setPoolsError(null);
 
-      // Query pools where user has liquidity (simplified - in real implementation would need LP token balance check)
-      const query = `
-        query GetUserPools($userAddress: String!) {
-          pools(first: 100) {
-            id
-            token0 {
-              id
-            }
-            token1 {
-              id
-            }
-            reserve0
-            reserve1
-            totalSupply
-            volumeUSD
-            txCount
-            createdAtTimestamp
-          }
-        }
-      `;
-
-      const response = await fetch(GOLDSKY_API_URL, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          query,
-          variables: {
-            userAddress: walletAddress.toLowerCase()
-          }
-        }),
-      });
-
-      const data = await response.json();
-      console.log("🏊 User pools response:", data);
-
-      if (data.errors && data.errors.length > 0) {
-        throw new Error(data.errors[0]?.message || "GraphQL error");
+      console.log("🏊 Fetching user pools...");
+      
+      // Fetch real user positions from backend API
+      console.log("📡 Fetching real user positions from backend...");
+      const response = await fetch(`http://localhost:3001/api/liquidity/positions/${walletAddress}`);
+      
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`);
       }
+      
+      const userPositions = await response.json();
+      console.log("✅ Real API response received:", userPositions);
+      console.log("📊 Positions count:", userPositions.positions?.positions?.length || 0);
 
-      if (data.data && data.data.pools) {
-        // Map pools with proper token metadata
-        const mappedPools = data.data.pools.map((pool: any) => {
-          const token0Address = pool.token0?.id?.toLowerCase();
-          const token1Address = pool.token1?.id?.toLowerCase();
+      if (userPositions.positions && userPositions.positions.positions.length > 0) {
+        console.log("🎯 Mapping positions to UI format...");
+        // Map REAL positions from Goldsky to UserPool format
+        const mappedPools = userPositions.positions.positions.map((position: any) => {
+          const token0Address = position.token0?.id?.toLowerCase();
+          const token1Address = position.token1?.id?.toLowerCase();
           
           const token0Info = TOKEN_MAPPING[token0Address] || {
-            symbol: "UNKNOWN",
-            name: "Unknown Token"
+            symbol: position.token0?.symbol || "UNKNOWN",
+            name: position.token0?.name || "Unknown Token"
           };
           
           const token1Info = TOKEN_MAPPING[token1Address] || {
-            symbol: "UNKNOWN", 
-            name: "Unknown Token"
+            symbol: position.token1?.symbol || "UNKNOWN", 
+            name: position.token1?.name || "Unknown Token"
           };
           
           return {
-            ...pool,
+            id: position.poolAddress || position.id || "",
             token0: {
-              id: pool.token0?.id || "",
+              id: position.token0?.id || "",
               symbol: token0Info.symbol,
               name: token0Info.name
             },
             token1: {
-              id: pool.token1?.id || "",
+              id: position.token1?.id || "",
               symbol: token1Info.symbol,
               name: token1Info.name
-            }
+            },
+            userLpBalance: ethers.formatEther(position.liquidity || "0"), // Convert from wei
+            userLpPercentage: position.poolOwnership ? parseFloat(position.poolOwnership) * 100 : 0,
+            reserve0: position.reserve0 || "0",
+            reserve1: position.reserve1 || "0",
+            totalSupply: position.totalSupply || "1",
+            volumeUSD: position.volumeUSD || "0",
+            txCount: "0",
+            createdAtTimestamp: Math.floor(Date.now() / 1000).toString(),
+            tvlUSD: position.valueUSD || 0,
+            userTVL: position.valueUSD || 0
           };
         });
 
-        console.log("🏊 Mapped user pools:", mappedPools);
+        console.log("✅ REAL Goldsky user pools mapped:", mappedPools);
+        console.log("📊 Setting user pools with", mappedPools.length, "pools");
         setUserPools(mappedPools);
-      } else {
-        setUserPools([]);
+        return;
       }
-    } catch (err) {
-      console.error("💥 Error fetching user pools:", err);
-      setPoolsError(err instanceof Error ? err.message : "Failed to fetch user pools");
+
+      // No positions found in Goldsky
+      console.log("📭 No liquidity positions found in Goldsky");
+      console.log("🔍 Setting empty user pools array");
       setUserPools([]);
+      
+    } catch (err) {
+      console.error("❌ Error fetching user pools:", err);
+      setPoolsError("Failed to fetch liquidity positions from Goldsky");
+      setUserPools([]); // No fallback - use REAL data only
     } finally {
       setPoolsLoading(false);
     }
@@ -316,6 +323,168 @@ export default function LiquidityPage() {
     }
   };
 
+  // Handle add liquidity to existing pool
+  const handleAddLiquidityToPool = async () => {
+    if (!isLoggedIn || !primaryWallet || !selectedPoolForLiquidity) {
+      setLiquidityError("Please connect your wallet and select a pool");
+      return;
+    }
+
+    if (!liquidityAmount0 || !liquidityAmount1 || parseFloat(liquidityAmount0) <= 0 || parseFloat(liquidityAmount1) <= 0) {
+      setLiquidityError("Please enter valid amounts");
+      return;
+    }
+
+    setIsLiquidityProcessing(true);
+    setLiquidityError("");
+    setLiquiditySuccess("");
+
+    try {
+      const userAddress = primaryWallet.address;
+      
+      // Get real token balances
+      const [token0Balance, token1Balance] = await Promise.all([
+        liquidityService.getTokenBalance(selectedPoolForLiquidity.token0.id, userAddress),
+        liquidityService.getTokenBalance(selectedPoolForLiquidity.token1.id, userAddress)
+      ]);
+
+      // Check balances
+      if (parseFloat(liquidityAmount0) > parseFloat(token0Balance.formattedBalance)) {
+        throw new Error(`Insufficient ${selectedPoolForLiquidity.token0.symbol} balance`);
+      }
+
+      if (parseFloat(liquidityAmount1) > parseFloat(token1Balance.formattedBalance)) {
+        throw new Error(`Insufficient ${selectedPoolForLiquidity.token1.symbol} balance`);
+      }
+
+      // Prepare add liquidity
+      const result = await liquidityService.prepareAddLiquidity(
+        selectedPoolForLiquidity.token0.id,
+        selectedPoolForLiquidity.token1.id,
+        liquidityAmount0,
+        liquidityAmount1,
+        userAddress,
+        0.5
+      );
+
+      // Execute transaction using Dynamic wallet client
+      const walletClient = await primaryWallet.getWalletClient();
+      const txResponse = await walletClient.sendTransaction({
+        to: result.transaction.to,
+        data: result.transaction.data,
+        value: result.transaction.value,
+        gasLimit: result.transaction.gasLimit
+      });
+
+      console.log('✅ Liquidity added to existing pool:', txResponse);
+      setLiquiditySuccess('Liquidity added successfully!');
+      
+      // Refresh pools data
+      await fetchUserPools();
+      
+      // Reset form
+      setLiquidityAmount0("");
+      setLiquidityAmount1("");
+      setSelectedPoolForLiquidity(null);
+
+    } catch (err: any) {
+      console.error("Add liquidity to pool failed:", err);
+      setLiquidityError(err.message || "Failed to add liquidity");
+    } finally {
+      setIsLiquidityProcessing(false);
+    }
+  };
+
+  // Handle remove liquidity from existing pool
+  const handleRemoveLiquidityFromPool = async () => {
+    if (!isLoggedIn || !primaryWallet || !selectedPoolForLiquidity) {
+      setLiquidityError("Please connect your wallet and select a pool");
+      return;
+    }
+
+    if (!liquidityAmount0 || parseFloat(liquidityAmount0) <= 0) {
+      setLiquidityError("Please enter LP amount to remove");
+      return;
+    }
+
+    setIsLiquidityProcessing(true);
+    setLiquidityError("");
+    setLiquiditySuccess("");
+
+    try {
+      const userAddress = primaryWallet.address;
+      
+      // Check user LP balance
+      const userLPBalance = parseFloat(selectedPoolForLiquidity.userLpBalance || "0");
+      if (parseFloat(liquidityAmount0) > userLPBalance) {
+        throw new Error(`Insufficient LP tokens. You have ${userLPBalance} LP tokens`);
+      }
+
+      // Step 1: Check and approve LP tokens if needed
+      console.log('🔍 Checking LP token allowance...');
+      const approveResult = await liquidityService.approveLiquidityTokens(
+        selectedPoolForLiquidity.token0.id,
+        selectedPoolForLiquidity.token1.id,
+        userAddress
+      );
+
+      if (!approveResult.approved) {
+        console.log('📝 Approving LP tokens...');
+        // Execute approve transaction
+        const walletClient = await primaryWallet.getWalletClient();
+        const approveTx = await walletClient.sendTransaction({
+          to: approveResult.to,
+          data: approveResult.data,
+          value: approveResult.value,
+          gasLimit: approveResult.gasLimit
+        });
+        
+        console.log('✅ LP tokens approved:', approveTx);
+        setLiquiditySuccess('LP tokens approved! Proceeding with remove liquidity...');
+        
+        // Wait a moment for approval to be processed
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      }
+
+      // Step 2: Prepare remove liquidity
+      console.log('🔍 Preparing remove liquidity transaction...');
+      const result = await liquidityService.prepareRemoveLiquidity(
+        selectedPoolForLiquidity.token0.id,
+        selectedPoolForLiquidity.token1.id,
+        liquidityAmount0,
+        userAddress,
+        0.5
+      );
+
+      // Step 3: Execute remove liquidity transaction
+      console.log('📝 Executing remove liquidity transaction...');
+      const walletClient = await primaryWallet.getWalletClient();
+      const txResponse = await walletClient.sendTransaction({
+        to: result.transaction.to,
+        data: result.transaction.data,
+        value: result.transaction.value,
+        gasLimit: result.transaction.gasLimit
+      });
+
+      console.log('✅ Liquidity removed from pool:', txResponse);
+      setLiquiditySuccess('Liquidity removed successfully!');
+      
+      // Refresh pools data
+      await fetchUserPools();
+      
+      // Reset form
+      setLiquidityAmount0("");
+      setLiquidityAmount1("");
+      setSelectedPoolForLiquidity(null);
+
+    } catch (err: any) {
+      console.error("Remove liquidity from pool failed:", err);
+      setLiquidityError(err.message || "Failed to remove liquidity");
+    } finally {
+      setIsLiquidityProcessing(false);
+    }
+  };
+
   const selectedIPAsset = ipAssets.find(asset => asset.ipId === selectedIP);
   const selectedTokenBalance = selectedIPAsset ? tokenBalances[selectedIPAsset.ipId] : null;
   const needsUnlock = selectedIPAsset ? 
@@ -395,12 +564,14 @@ export default function LiquidityPage() {
     );
   }
 
-  // Format large numbers
+  // Format numbers for display
   const formatNumber = (value: string | number) => {
     const num = typeof value === 'string' ? parseFloat(value) : value;
     if (num >= 1e9) return `${(num / 1e9).toFixed(2)}B`;
     if (num >= 1e6) return `${(num / 1e6).toFixed(2)}M`;
     if (num >= 1e3) return `${(num / 1e3).toFixed(2)}K`;
+    if (num < 0.01 && num > 0) return num.toExponential(2); // Show very small numbers in scientific notation
+    if (num < 1) return num.toFixed(6); // Show more decimals for small numbers
     return num.toFixed(2);
   };
 
@@ -411,6 +582,27 @@ export default function LiquidityPage() {
 
   return (
     <div className="min-h-screen bg-linear-to-br from-gray-900 via-purple-900 to-gray-900">
+      <style jsx>{`
+        .slider::-webkit-slider-thumb {
+          appearance: none;
+          width: 20px;
+          height: 20px;
+          background: #3b82f6;
+          cursor: pointer;
+          border-radius: 50%;
+          border: 2px solid white;
+          box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        .slider::-moz-range-thumb {
+          width: 20px;
+          height: 20px;
+          background: #3b82f6;
+          cursor: pointer;
+          border-radius: 50%;
+          border: 2px solid white;
+          box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+      `}</style>
       <Navigation />
       <main className="container mx-auto px-4 py-8">
         <div className="text-center mb-8">
@@ -694,91 +886,376 @@ export default function LiquidityPage() {
                   </AlertDescription>
                 </Alert>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {userPools.map((pool) => (
-                    <Card key={pool.id} className="hover:shadow-lg transition-shadow">
-                      <CardHeader className="pb-3">
-                        <CardTitle className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <Droplets className="h-4 w-4 text-blue-500" />
-                            <span className="text-sm">
-                              {pool.token0?.symbol ?? "UNKNOWN"} / {pool.token1?.symbol ?? "UNKNOWN"}
-                            </span>
-                          </div>
-                          <Badge variant="secondary" className="text-xs">
-                            Your Pool
-                          </Badge>
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent className="space-y-3">
-                        {/* Token Information */}
-                        <div className="space-y-2">
-                          <div className="flex justify-between items-center">
-                            <span className="text-xs text-gray-600">Token 0:</span>
-                            <span className="text-xs font-medium">
-                              {pool.token0?.symbol ?? "UNKNOWN"}
-                            </span>
-                          </div>
-                          <div className="flex justify-between items-center">
-                            <span className="text-xs text-gray-600">Token 1:</span>
-                            <span className="text-xs font-medium">
-                              {pool.token1?.symbol ?? "UNKNOWN"}
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* Pool Stats */}
-                        <div className="space-y-2 pt-2 border-t">
-                          <div className="flex justify-between items-center">
-                            <span className="text-xs text-gray-600">Reserve 0:</span>
-                            <span className="text-xs font-medium">
-                              {formatNumber(pool.reserve0)}
-                            </span>
-                          </div>
-                          <div className="flex justify-between items-center">
-                            <span className="text-xs text-gray-600">Reserve 1:</span>
-                            <span className="text-xs font-medium">
-                              {formatNumber(pool.reserve1)}
-                            </span>
-                          </div>
-                          <div className="flex justify-between items-center">
-                            <span className="text-xs text-gray-600">Volume USD:</span>
-                            <span className="text-xs font-medium text-green-600">
-                              ${formatNumber(pool.volumeUSD)}
-                            </span>
-                          </div>
-                          <div className="flex justify-between items-center">
-                            <span className="text-xs text-gray-600">Created:</span>
-                            <span className="text-xs font-medium">
-                              {formatDate(pool.createdAtTimestamp)}
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* Pool Address */}
-                        <div className="pt-2 border-t">
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs text-gray-500">Pool:</span>
-                            <div className="flex items-center gap-1">
-                              <span className="text-xs font-mono">
-                                {pool.id.slice(0, 6)}...{pool.id.slice(-4)}
+                <div className="space-y-6">
+                  {/* Pool Cards with Add/Remove Liquidity */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {userPools.map((pool) => (
+                      <Card key={pool.id} className="hover:shadow-lg transition-shadow">
+                        <CardHeader className="pb-3">
+                          <CardTitle className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <Droplets className="h-4 w-4 text-blue-500" />
+                              <span className="text-sm">
+                                {pool.token0?.symbol ?? "UNKNOWN"} / {pool.token1?.symbol ?? "UNKNOWN"}
                               </span>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-4 w-4 p-0"
-                                onClick={() => {
-                                  navigator.clipboard.writeText(pool.id);
-                                }}
-                              >
-                                <ExternalLink className="h-3 w-3" />
-                              </Button>
+                            </div>
+                            <Badge variant="secondary" className="text-xs">
+                              Your Pool
+                            </Badge>
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-3">
+                          {/* Token Information */}
+                          <div className="space-y-2">
+                            <div className="flex justify-between items-center">
+                              <span className="text-xs text-gray-600">Token 0:</span>
+                              <span className="text-xs font-medium">
+                                {pool.token0?.symbol ?? "UNKNOWN"}
+                              </span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <span className="text-xs text-gray-600">Token 1:</span>
+                              <span className="text-xs font-medium">
+                                {pool.token1?.symbol ?? "UNKNOWN"}
+                              </span>
                             </div>
                           </div>
-                        </div>
+
+                          {/* Pool Stats */}
+                          <div className="space-y-2 pt-2 border-t">
+                            <div className="flex justify-between items-center">
+                              <span className="text-xs text-gray-600">Reserve 0:</span>
+                              <span className="text-xs font-medium">
+                                {formatNumber(pool.reserve0)}
+                              </span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <span className="text-xs text-gray-600">Reserve 1:</span>
+                              <span className="text-xs font-medium">
+                                {formatNumber(pool.reserve1)}
+                              </span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <span className="text-xs text-gray-600">Volume USD:</span>
+                              <span className="text-xs font-medium text-green-600">
+                                ${formatNumber(pool.volumeUSD)}
+                              </span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <span className="text-xs text-gray-600">Your LP Balance:</span>
+                              <span className="text-xs font-medium text-blue-600">
+                                {pool.userLpBalance || "0"} LP
+                              </span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <span className="text-xs text-gray-600">Your Share:</span>
+                              <span className="text-xs font-medium text-purple-600">
+                                {pool.userLpPercentage?.toFixed(2) || "0.00"}%
+                              </span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <span className="text-xs text-gray-600">Created:</span>
+                              <span className="text-xs font-medium">
+                                {formatDate(pool.createdAtTimestamp)}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Add/Remove Liquidity Buttons */}
+                          <div className="pt-2 border-t space-y-2">
+                            <Button
+                              onClick={() => {
+                                setSelectedPoolForLiquidity(pool);
+                                setLiquidityMode("add");
+                                setLiquidityError("");
+                                setLiquiditySuccess("");
+                                setLiquidityPercentage(0);
+                                setLiquidityAmount0("");
+                                setLiquidityAmount1("");
+                              }}
+                              size="sm"
+                              className="w-full"
+                              variant="outline"
+                            >
+                              <Plus className="h-3 w-3 mr-1" />
+                              Add Liquidity
+                            </Button>
+                            <Button
+                              onClick={() => {
+                                setSelectedPoolForLiquidity(pool);
+                                setLiquidityMode("remove");
+                                setLiquidityError("");
+                                setLiquiditySuccess("");
+                                setLiquidityPercentage(0);
+                                setLiquidityAmount0("");
+                                setLiquidityAmount1("");
+                              }}
+                              size="sm"
+                              className="w-full"
+                              variant="outline"
+                            >
+                              <TrendingUp className="h-3 w-3 mr-1" />
+                              Remove Liquidity
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+
+                  {/* Add/Remove Liquidity Modal */}
+                  {selectedPoolForLiquidity && (
+                    <Card className="border-blue-200 bg-blue-50">
+                      <CardHeader>
+                        <CardTitle className="flex items-center justify-between">
+                          <span className="flex items-center gap-2">
+                            {liquidityMode === "add" ? <Plus className="h-5 w-5" /> : <TrendingUp className="h-5 w-5" />}
+                            {liquidityMode === "add" ? "Add" : "Remove"} Liquidity
+                          </span>
+                          <Button
+                            onClick={() => setSelectedPoolForLiquidity(null)}
+                            size="sm"
+                            variant="ghost"
+                          >
+                            ✕
+                          </Button>
+                        </CardTitle>
+                        <p className="text-sm text-blue-800">
+                          {selectedPoolForLiquidity.token0?.symbol} / {selectedPoolForLiquidity.token1?.symbol} Pool
+                        </p>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        {/* Liquidity Error/Success */}
+                        {liquidityError && (
+                          <Alert variant="destructive">
+                            <AlertCircle className="h-4 w-4" />
+                            <AlertDescription>{liquidityError}</AlertDescription>
+                          </Alert>
+                        )}
+
+                        {liquiditySuccess && (
+                          <Alert className="bg-green-50 border-green-200">
+                            <CheckCircle className="h-4 w-4 text-green-600" />
+                            <AlertDescription className="text-green-800">{liquiditySuccess}</AlertDescription>
+                          </Alert>
+                        )}
+
+                        {liquidityMode === "add" ? (
+                          <>
+                            {/* Add Liquidity Form with Slider */}
+                            <div className="space-y-4">
+                              <div>
+                                <Label className="flex items-center gap-2 mb-2">
+                                  <Percent className="h-4 w-4" />
+                                  Amount Percentage
+                                </Label>
+                                <div className="flex items-center gap-4">
+                                  <input
+                                    type="range"
+                                    min="0"
+                                    max="100"
+                                    value={liquidityPercentage}
+                                    onChange={(e) => {
+                                      const percentage = parseInt(e.target.value);
+                                      setLiquidityPercentage(percentage);
+                                      // Auto-calculate amounts based on percentage
+                                      const maxAmount0 = 0.000000001; // Max WIP based on user's real balance
+                                      const maxAmount1 = 100; // Max RT based on user's real balance
+                                      setLiquidityAmount0((maxAmount0 * percentage / 100).toString());
+                                      setLiquidityAmount1((maxAmount1 * percentage / 100).toString());
+                                    }}
+                                    className="flex-1 h-2 bg-blue-200 rounded-lg appearance-none cursor-pointer slider"
+                                  />
+                                  <div className="flex items-center gap-2 bg-blue-100 px-3 py-1 rounded-lg min-w-[80px]">
+                                    <span className="text-sm font-medium text-blue-800">{liquidityPercentage}%</span>
+                                  </div>
+                                </div>
+                                <div className="flex justify-between text-xs text-gray-500 mt-1">
+                                  <span>0%</span>
+                                  <span>25%</span>
+                                  <span>50%</span>
+                                  <span>75%</span>
+                                  <span>100%</span>
+                                </div>
+                              </div>
+
+                              <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                  <Label>{selectedPoolForLiquidity.token0?.symbol} Amount</Label>
+                                  <Input
+                                    type="number"
+                                    placeholder="0.0"
+                                    value={liquidityAmount0}
+                                    onChange={(e) => {
+                                      setLiquidityAmount0(e.target.value);
+                                      // Update percentage based on manual input
+                                      const maxAmount0 = 0.000000001; // Max WIP based on user's real balance
+                                      const percentage = Math.min(100, Math.round((parseFloat(e.target.value) || 0) / maxAmount0 * 100));
+                                      setLiquidityPercentage(percentage);
+                                    }}
+                                  />
+                                  <p className="text-xs text-gray-500 mt-1">Max: 0.000000001</p>
+                                </div>
+                                <div>
+                                  <Label>{selectedPoolForLiquidity.token1?.symbol} Amount</Label>
+                                  <Input
+                                    type="number"
+                                    placeholder="0.0"
+                                    value={liquidityAmount1}
+                                    onChange={(e) => {
+                                      setLiquidityAmount1(e.target.value);
+                                      // Update percentage based on manual input
+                                      const maxAmount1 = 100; // Max RT based on user's real balance
+                                      const percentage = Math.min(100, Math.round((parseFloat(e.target.value) || 0) / maxAmount1 * 100));
+                                      setLiquidityPercentage(percentage);
+                                    }}
+                                  />
+                                  <p className="text-xs text-gray-500 mt-1">Max: 100</p>
+                                </div>
+                              </div>
+
+                              {/* Quick Percentage Buttons */}
+                              <div className="flex gap-2">
+                                {[25, 50, 75, 100].map((percent) => (
+                                  <Button
+                                    key={percent}
+                                    variant={liquidityPercentage === percent ? "default" : "outline"}
+                                    size="sm"
+                                    onClick={() => {
+                                      setLiquidityPercentage(percent);
+                                      setLiquidityAmount0((0.000000001 * percent / 100).toString());
+                                      setLiquidityAmount1((100 * percent / 100).toString());
+                                    }}
+                                    className="flex-1"
+                                  >
+                                    {percent}%
+                                  </Button>
+                                ))}
+                              </div>
+                            </div>
+
+                            <Button
+                              onClick={handleAddLiquidityToPool}
+                              disabled={isLiquidityProcessing || liquidityPercentage === 0}
+                              className="w-full"
+                            >
+                              {isLiquidityProcessing ? (
+                                <>
+                                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                  Adding Liquidity...
+                                </>
+                              ) : (
+                                `Add ${liquidityPercentage}% Liquidity`
+                              )}
+                            </Button>
+                          </>
+                        ) : (
+                          <>
+                            {/* Remove Liquidity Form with Slider */}
+                            <div className="space-y-4">
+                              <div>
+                                <Label className="flex items-center gap-2 mb-2">
+                                  <Percent className="h-4 w-4" />
+                                  LP Token Percentage
+                                </Label>
+                                <div className="flex items-center gap-4">
+                                  <input
+                                    type="range"
+                                    min="0"
+                                    max="100"
+                                    value={liquidityPercentage}
+                                    onChange={(e) => {
+                                      const percentage = parseInt(e.target.value);
+                                      setLiquidityPercentage(percentage);
+                                      // Auto-calculate LP amount based on percentage
+                                      const maxLP = parseFloat(selectedPoolForLiquidity.userLpBalance || "0");
+                                      setLiquidityAmount0((maxLP * percentage / 100).toString());
+                                    }}
+                                    className="flex-1 h-2 bg-red-200 rounded-lg appearance-none cursor-pointer slider"
+                                  />
+                                  <div className="flex items-center gap-2 bg-red-100 px-3 py-1 rounded-lg min-w-[80px]">
+                                    <span className="text-sm font-medium text-red-800">{liquidityPercentage}%</span>
+                                  </div>
+                                </div>
+                                <div className="flex justify-between text-xs text-gray-500 mt-1">
+                                  <span>0%</span>
+                                  <span>25%</span>
+                                  <span>50%</span>
+                                  <span>75%</span>
+                                  <span>100%</span>
+                                </div>
+                              </div>
+
+                              <div>
+                                <Label>LP Token Amount</Label>
+                                <Input
+                                  type="number"
+                                  placeholder="0.0"
+                                  value={liquidityAmount0}
+                                  onChange={(e) => {
+                                    setLiquidityAmount0(e.target.value);
+                                    // Update percentage based on manual input
+                                    const maxLP = parseFloat(selectedPoolForLiquidity.userLpBalance || "0");
+                                    const percentage = Math.min(100, Math.round((parseFloat(e.target.value) || 0) / maxLP * 100));
+                                    setLiquidityPercentage(percentage);
+                                  }}
+                                />
+                                <p className="text-xs text-gray-500 mt-1">
+                                  Available: {selectedPoolForLiquidity.userLpBalance || "0"} LP tokens
+                                </p>
+                              </div>
+
+                              {/* Quick Percentage Buttons */}
+                              <div className="flex gap-2">
+                                {[25, 50, 75, 100].map((percent) => (
+                                  <Button
+                                    key={percent}
+                                    variant={liquidityPercentage === percent ? "destructive" : "outline"}
+                                    size="sm"
+                                    onClick={() => {
+                                      setLiquidityPercentage(percent);
+                                      const maxLP = parseFloat(selectedPoolForLiquidity.userLpBalance || "0");
+                                      setLiquidityAmount0((maxLP * percent / 100).toString());
+                                    }}
+                                    className="flex-1"
+                                  >
+                                    {percent}%
+                                  </Button>
+                                ))}
+                              </div>
+
+                              {/* Estimated Returns */}
+                              {liquidityPercentage > 0 && (
+                                <div className="p-3 bg-orange-50 border border-orange-200 rounded-lg">
+                                  <p className="text-sm font-medium text-orange-800 mb-1">Estimated Returns:</p>
+                                  <div className="text-xs text-orange-700 space-y-1">
+                                    <p>WIP: {(parseFloat(selectedPoolForLiquidity.reserve0 || "0") * liquidityPercentage / 100).toFixed(2)}</p>
+                                    <p>RT: {(parseFloat(selectedPoolForLiquidity.reserve1 || "0") * liquidityPercentage / 100).toFixed(2)}</p>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+
+                            <Button
+                              onClick={handleRemoveLiquidityFromPool}
+                              disabled={isLiquidityProcessing || liquidityPercentage === 0}
+                              className="w-full"
+                              variant="destructive"
+                            >
+                              {isLiquidityProcessing ? (
+                                <>
+                                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                  Removing Liquidity...
+                                </>
+                              ) : (
+                                `Remove ${liquidityPercentage}% Liquidity`
+                              )}
+                            </Button>
+                          </>
+                        )}
                       </CardContent>
                     </Card>
-                  ))}
+                  )}
                 </div>
               )}
             </CardContent>

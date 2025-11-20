@@ -13,7 +13,7 @@ interface ISovryFactory {
     function createPair(address tokenA, address tokenB) external returns (address pair);
 }
 
-interface ISovryPool {
+interface ISovryPool is IERC20 {
     function getReserves() external view returns (uint112 reserve0, uint112 reserve1, uint32 blockTimestampLast);
 
     function mint(address to) external returns (uint256 liquidity);
@@ -79,6 +79,22 @@ contract SovryRouter {
         if (msg.value > amountIP) {
             _safeTransferIP(msg.sender, msg.value - amountIP);
         }
+    }
+
+    function removeLiquidity(
+        address tokenA,
+        address tokenB,
+        uint256 liquidity,
+        uint256 amountAMin,
+        uint256 amountBMin,
+        address to,
+        uint256 deadline
+    ) external ensure(deadline) returns (uint256 amountA, uint256 amountB) {
+        address pair = pairFor(tokenA, tokenB);
+        ISovryPool(pair).transferFrom(msg.sender, pair, liquidity);
+        (amountA, amountB) = ISovryPool(pair).burn(to);
+        require(amountA >= amountAMin, "SovryRouter: INSUFFICIENT_A_AMOUNT");
+        require(amountB >= amountBMin, "SovryRouter: INSUFFICIENT_B_AMOUNT");
     }
 
     // ---------------------------------------------------------------------
