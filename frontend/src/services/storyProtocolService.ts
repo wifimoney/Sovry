@@ -3,7 +3,7 @@
 
 import { StoryClient } from '@story-protocol/core-sdk';
 import { StoryClient as StoryClientType } from '@story-protocol/core-sdk';
-import { createPublicClient, http, Address, parseEther, encodeFunctionData } from 'viem';
+import { createPublicClient, http, Address, parseEther, encodeFunctionData, custom } from 'viem';
 import { erc20Abi } from 'viem';
 
 // Environment variables
@@ -132,11 +132,11 @@ export interface TokenBalance {
   symbol: string;
 }
 
-// Create Story Protocol client with wallet
-function createStoryProtocolClient(walletAddress?: string) {
-  if (!walletAddress) {
-    console.warn('No wallet address provided for Story SDK - using read-only client');
-    // Try using the static factory method if available
+// Create Story Protocol client with Dynamic wallet
+async function createStoryProtocolClient(primaryWallet?: any) {
+  if (!primaryWallet) {
+    console.warn('No wallet provided for Story SDK - using read-only client');
+    // Read-only client for public queries
     return (StoryClient as any).new?.({
       transport: http(STORY_RPC_URL),
       chainId: 1315, // Aeneid Testnet
@@ -146,16 +146,34 @@ function createStoryProtocolClient(walletAddress?: string) {
     });
   }
   
-  // Try using the static factory method if available
-  return (StoryClient as any).new?.({
-    transport: http(STORY_RPC_URL),
-    chainId: 1315, // Aeneid Testnet
-    account: walletAddress as Address, // Add connected wallet
-  }) || new (StoryClient as any)({
-    transport: http(STORY_RPC_URL),
-    chainId: 1315, // Aeneid Testnet
-    account: walletAddress as Address, // Add connected wallet
-  });
+  try {
+    // Get wallet client from Dynamic SDK
+    const walletClient = await primaryWallet.getWalletClient();
+    
+    // Create Story SDK client with Dynamic wallet
+    // Use viem custom transport with Dynamic wallet client
+    const config: any = {
+      wallet: walletClient,
+      transport: custom(walletClient.transport),
+      chainId: "aeneid", // Use string as per docs
+    };
+    
+    return (StoryClient as any).newClient?.(config) || (StoryClient as any).new?.(config);
+  } catch (error) {
+    console.error('Error creating Story SDK client with Dynamic wallet:', error);
+    
+    // Fallback to address-only client
+    const walletAddress = await primaryWallet.address;
+    return (StoryClient as any).new?.({
+      transport: http(STORY_RPC_URL),
+      chainId: 1315, // Aeneid Testnet
+      account: walletAddress as Address,
+    }) || new (StoryClient as any)({
+      transport: http(STORY_RPC_URL),
+      chainId: 1315, // Aeneid Testnet
+      account: walletAddress as Address,
+    });
+  }
 }
 
 // Create public client for Story Protocol
@@ -213,12 +231,19 @@ const ERC20_ABI = [
 ] as const;
 
 // Get royalty vault address for IP asset using Story Protocol SDK
-export async function getRoyaltyVaultAddress(ipId: string, walletAddress?: string): Promise<string | null> {
+export async function getRoyaltyVaultAddress(ipId: string, primaryWallet?: any): Promise<string | null> {
   try {
     console.log('Getting royalty vault address for IP:', ipId);
     
-    // Use Story Protocol SDK with connected wallet
-    const client = createStoryProtocolClient(walletAddress);
+    // Validate IP ID format (should be a valid address)
+    if (!ipId || ipId === '0x0000000000000000000000000000000000000000' || 
+        !ipId.startsWith('0x') || ipId.length !== 42) {
+      console.warn('Invalid IP ID format:', ipId);
+      return null;
+    }
+    
+    // Use Story Protocol SDK with connected Dynamic wallet
+    const client = await createStoryProtocolClient(primaryWallet);
     const royaltyVaultAddress = await client.royalty.getRoyaltyVaultAddress(ipId as Address);
     
     console.log('Royalty vault address from Story SDK:', royaltyVaultAddress);
@@ -244,6 +269,7 @@ export async function getRoyaltyVaultAddress(ipId: string, walletAddress?: strin
       return royaltyVaultAddress;
     } catch (contractError) {
       console.error('Contract call also failed:', contractError);
+      console.error('This IP might not exist or have no royalty vault:', ipId);
       
       // Return null instead of mock data - no mock data allowed
       return null;
@@ -252,11 +278,11 @@ export async function getRoyaltyVaultAddress(ipId: string, walletAddress?: strin
 }
 
 // Check if IP asset has royalty tokens
-export async function checkRoyaltyTokens(ipId: string, walletAddress?: string): Promise<boolean> {
+export async function checkRoyaltyTokens(ipId: string, primaryWallet?: any): Promise<boolean> {
   try {
     console.log('Checking royalty tokens for IP:', ipId);
     
-    const royaltyVaultAddress = await getRoyaltyVaultAddress(ipId, walletAddress);
+    const royaltyVaultAddress = await getRoyaltyVaultAddress(ipId, primaryWallet);
     
     // If vault address exists and is not zero address, IP has royalty tokens
     return royaltyVaultAddress !== null && 
@@ -335,6 +361,7 @@ export async function needsTokenUnlock(userAddress: string, tokenAddress: string
 export async function unlockRoyaltyTokens(
   userAddress: string, 
   ipId: string, 
+  primaryWallet?: any,
   amount?: string
 ): Promise<{
   success: boolean;
@@ -345,10 +372,13 @@ export async function unlockRoyaltyTokens(
     console.log('Unlocking royalty tokens for IP:', ipId, 'to user:', userAddress);
     
     // Get royalty vault address (this is the token address)
-    const royaltyVaultAddress = await getRoyaltyVaultAddress(ipId);
+    const royaltyVaultAddress = await getRoyaltyVaultAddress(ipId, primaryWallet);
     
     if (!royaltyVaultAddress) {
-      throw new Error('Royalty vault address not found for this IP asset');
+      return {
+        success: false,
+        error: 'This IP asset does not have a royalty vault. It may not be registered on Story Protocol or has no royalty tokens.'
+      };
     }
     
     // In a real implementation, this would:
@@ -381,7 +411,7 @@ export async function unlockRoyaltyTokens(
 }
 
 // Fetch IP assets for a wallet address using Story Protocol API
-export async function fetchWalletIPAssets(walletAddress: string): Promise<IPAsset[]> {
+export async function fetchWalletIPAssets(walletAddress: string, primaryWallet?: any): Promise<IPAsset[]> {
   try {
     console.log('Fetching IP assets for wallet:', walletAddress);
     
@@ -496,8 +526,8 @@ export async function fetchWalletIPAssets(walletAddress: string): Promise<IPAsse
         const ipAssets: IPAsset[] = await Promise.all(
           assets.map(async (asset: any) => {
             // Get royalty vault address for each IP asset using connected wallet
-            const royaltyVaultAddress = await getRoyaltyVaultAddress(asset.ipId, walletAddress);
-            const hasRoyaltyTokens = await checkRoyaltyTokens(asset.ipId, walletAddress);
+            const royaltyVaultAddress = await getRoyaltyVaultAddress(asset.ipId, primaryWallet);
+            const hasRoyaltyTokens = await checkRoyaltyTokens(asset.ipId, primaryWallet);
 
             return {
               ipId: asset.ipId,
@@ -942,15 +972,15 @@ export async function createPoolWithLiquidity(
 }
 
 // Get IP asset details
-export async function getIPAssetDetails(ipId: string): Promise<IPAsset | null> {
+export async function getIPAssetDetails(ipId: string, primaryWallet?: any): Promise<IPAsset | null> {
   try {
     console.log('Getting IP asset details for:', ipId);
     
     // Get royalty vault address
-    const royaltyVaultAddress = await getRoyaltyVaultAddress(ipId);
+    const royaltyVaultAddress = await getRoyaltyVaultAddress(ipId, primaryWallet);
     
     // Check if has royalty tokens
-    const hasRoyaltyTokens = await checkRoyaltyTokens(ipId);
+    const hasRoyaltyTokens = await checkRoyaltyTokens(ipId, primaryWallet);
     
     // Mock IP asset details - in production, you'd get this from the Story Protocol SDK
     const ipAsset: IPAsset = {

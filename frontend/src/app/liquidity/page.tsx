@@ -22,6 +22,17 @@ import {
   TokenBalance,
   PoolCreationParams
 } from "@/services/storyProtocolService";
+import {
+  registerIPAsset,
+  claimRevenue,
+  mintLicenseToken,
+  transferRoyaltyTokensFromIP,
+  createSampleIPMetadata,
+  createSampleNFTMetadata,
+  IPMetadata,
+  NFTMetadata,
+  RegistrationResult
+} from "@/services/storyProtocolRegistration";
 import { liquidityService } from "@/services/liquidityService";
 
 // Sovry Router Address for UI display
@@ -82,6 +93,12 @@ export default function LiquidityPage() {
   const [royaltyAmount, setRoyaltyAmount] = useState("1000");
   const [tokenBalances, setTokenBalances] = useState<Record<string, TokenBalance>>({});
   const [unlockingTokens, setUnlockingTokens] = useState<string | null>(null);
+  const [claimingRevenue, setClaimingRevenue] = useState<string | null>(null);
+  const [registeringIP, setRegisteringIP] = useState(false);
+  const [showRegistrationForm, setShowRegistrationForm] = useState(false);
+  const [ipTitle, setIpTitle] = useState("");
+  const [ipDescription, setIpDescription] = useState("");
+  const [ipImageUrl, setIpImageUrl] = useState("");
   
   // User pools state
   const [userPools, setUserPools] = useState<UserPool[]>([]);
@@ -197,7 +214,7 @@ export default function LiquidityPage() {
         setError(null);
         
         try {
-          const assets = await fetchWalletIPAssets(walletAddress);
+          const assets = await fetchWalletIPAssets(walletAddress, primaryWallet);
           setIpAssets(assets);
           
           // Also fetch user pools
@@ -226,33 +243,234 @@ export default function LiquidityPage() {
   }, [isLoggedIn, walletAddress]);
 
   const handleUnlockTokens = async (ipAsset: IPAsset) => {
-    if (!walletAddress) return;
+    if (!walletAddress || !primaryWallet) return;
     
     setUnlockingTokens(ipAsset.ipId);
     setError(null);
     setSuccess(null);
 
     try {
-      const result = await unlockRoyaltyTokens(walletAddress, ipAsset.ipId);
+      // Flow sesuai Story Protocol docs:
+      // 1. Mint license token (triggers royalty vault deployment)
+      // 2. Transfer royalty tokens dari IP Account ke user wallet
       
-      if (result.success) {
-        setSuccess(`Tokens unlocked successfully! Transaction: ${result.transactionHash}`);
+      console.log('📜 Step 1: Minting license token to trigger royalty vault...');
+      
+      // Coba beberapa license terms ID yang mungkin ada
+      const licenseTermsIds = ["1", "2", "3", "10", "100"];
+      let licenseResult = { success: false };
+      
+      for (const termsId of licenseTermsIds) {
+        try {
+          console.log(`🔄 Trying license terms ID: ${termsId}`);
+          licenseResult = await mintLicenseToken(ipAsset.ipId, termsId, primaryWallet);
+          
+          if (licenseResult.success) {
+            console.log(`✅ License token minted with terms ID: ${termsId}`);
+            break;
+          }
+        } catch (termsError) {
+          console.log(`❌ License terms ID ${termsId} failed:`, termsError instanceof Error ? termsError.message : 'Unknown error');
+          continue;
+        }
+      }
+      
+      if (!licenseResult.success) {
+        throw new Error('Failed to mint license token with any license terms ID');
+      }
+      
+      setSuccess(`License token minted successfully! Transaction: ${licenseResult.txHash}`);
+      
+      // Wait untuk royalty vault deployment
+      console.log('⏳ Waiting for royalty vault deployment...');
+      await new Promise(resolve => setTimeout(resolve, 5000));
+      
+      // Step 2: Transfer royalty tokens dari IP Account ke user wallet
+      console.log('🔄 Step 2: Transferring royalty tokens from IP Account to your wallet...');
+      
+      const transferResult = await transferRoyaltyTokensFromIP(ipAsset.ipId, primaryWallet);
+      
+      if (transferResult.success) {
+        setSuccess(prev => prev + `\n✅ Royalty tokens transferred to your wallet! Transaction: ${transferResult.txHash}`);
         
-        // Refresh token balance
+        // Wait lebih lama untuk transfer processing
+        console.log('⏳ Waiting for tokens to appear in your wallet...');
+        await new Promise(resolve => setTimeout(resolve, 10000)); // Wait 10 seconds
+        
+        // Check token balance multiple times
+        console.log('🔍 Checking your royalty token balance...');
+        let balance = await getTokenBalance(walletAddress, ipAsset.royaltyVaultAddress);
+        
+        if (balance && parseFloat(balance.formattedBalance) > 0) {
+          setTokenBalances(prev => ({
+            ...prev,
+            [ipAsset.ipId]: balance
+          }));
+          setSuccess(prev => prev + `\n💰 Your royalty token balance: ${balance.formattedBalance} ${balance.symbol}`);
+          
+          // Auto-claim all available revenue!
+          console.log('💰 Auto-claiming all available revenue...');
+          try {
+            const claimResult = await claimRevenue(ipAsset.ipId, primaryWallet);
+            if (claimResult.success) {
+              setSuccess(prev => prev + `\n✅ All revenue claimed successfully! Transaction: ${claimResult.txHash}`);
+            } else {
+              setSuccess(prev => prev + `\n⚠️ Revenue claim failed: ${claimResult.error}`);
+            }
+          } catch (claimError) {
+            console.log('Revenue claim error:', claimError);
+            setSuccess(prev => prev + `\n⚠️ Could not auto-claim revenue: ${claimError instanceof Error ? claimError.message : 'Unknown error'}`);
+          }
+        } else {
+          // Try again after 5 more seconds
+          console.log('🔄 Balance still 0, trying again...');
+          await new Promise(resolve => setTimeout(resolve, 5000));
+          balance = await getTokenBalance(walletAddress, ipAsset.royaltyVaultAddress);
+          
+          if (balance && parseFloat(balance.formattedBalance) > 0) {
+            setTokenBalances(prev => ({
+              ...prev,
+              [ipAsset.ipId]: balance
+            }));
+            setSuccess(prev => prev + `\n💰 Your royalty token balance: ${balance.formattedBalance} ${balance.symbol}`);
+            
+            // Auto-claim all available revenue!
+            console.log('💰 Auto-claiming all available revenue...');
+            try {
+              const claimResult = await claimRevenue(ipAsset.ipId, primaryWallet);
+              if (claimResult.success) {
+                setSuccess(prev => prev + `\n✅ All revenue claimed successfully! Transaction: ${claimResult.txHash}`);
+              } else {
+                setSuccess(prev => prev + `\n⚠️ Revenue claim failed: ${claimResult.error}`);
+              }
+            } catch (claimError) {
+              console.log('Revenue claim error:', claimError);
+              setSuccess(prev => prev + `\n⚠️ Could not auto-claim revenue: ${claimError instanceof Error ? claimError.message : 'Unknown error'}`);
+            }
+          } else {
+            setSuccess(prev => prev + `\n⚠️ Tokens transferred but balance is still showing 0. 
+
+This could mean:
+• The tokens need more time to process (try refreshing)
+• The token decimals are very small (check wallet directly)
+• The transfer is still pending on the network
+
+Transaction: ${transferResult.txHash}
+Token Address: ${ipAsset.royaltyVaultAddress}
+
+Try checking your wallet directly or refresh the page!`);
+          }
+        }
+        
+      } else {
+        setSuccess(prev => prev + `\n⚠️ License minted but token transfer failed: ${transferResult.error}`);
+      }
+      
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Failed to get royalty tokens');
+    } finally {
+      setUnlockingTokens(null);
+    }
+  };
+
+  const handleClaimRevenue = async (ipAsset: IPAsset) => {
+    if (!walletAddress || !primaryWallet) return;
+    
+    setClaimingRevenue(ipAsset.ipId);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      console.log('💰 Claiming all revenue for IP:', ipAsset.ipId);
+      
+      const claimResult = await claimRevenue(ipAsset.ipId, primaryWallet);
+      
+      if (claimResult.success) {
+        setSuccess(`All revenue claimed successfully! Transaction: ${claimResult.txHash}`);
+        
+        // Refresh token balance after claiming
+        await new Promise(resolve => setTimeout(resolve, 3000));
+        
         const balance = await getTokenBalance(walletAddress, ipAsset.royaltyVaultAddress);
         if (balance) {
           setTokenBalances(prev => ({
             ...prev,
             [ipAsset.ipId]: balance
           }));
+          setSuccess(prev => prev + `\n💰 Updated balance: ${balance.formattedBalance} ${balance.symbol}`);
         }
       } else {
-        throw new Error(result.error || "Failed to unlock tokens");
+        setError(`Failed to claim revenue: ${claimResult.error}`);
       }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "An error occurred");
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Failed to claim revenue');
     } finally {
-      setUnlockingTokens(null);
+      setClaimingRevenue(null);
+    }
+  };
+
+  const handleRegisterIPAsset = async () => {
+    if (!walletAddress || !primaryWallet) {
+      setError('Please connect your wallet first');
+      return;
+    }
+
+    if (!ipTitle || !ipDescription || !ipImageUrl) {
+      setError('Please fill in all IP asset fields');
+      return;
+    }
+
+    setRegisteringIP(true);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      console.log('🚀 Registering new IP Asset...');
+
+      // Create IP metadata
+      const ipMetadata = createSampleIPMetadata(
+        ipTitle,
+        ipDescription,
+        ipImageUrl,
+        walletAddress,
+        'IP Creator'
+      );
+
+      // Create NFT metadata
+      const nftMetadata = createSampleNFTMetadata(
+        `${ipTitle} Ownership NFT`,
+        `Ownership NFT for ${ipTitle}`,
+        ipImageUrl
+      );
+
+      // Register IP Asset
+      const result = await registerIPAsset(ipMetadata, nftMetadata, primaryWallet);
+
+      if (result.success) {
+        setSuccess(`IP Asset registered successfully!
+          IP ID: ${result.ipId}
+          Transaction: ${result.txHash}
+          Royalty Vault: ${result.royaltyVaultAddress?.slice(0, 10)}...
+          
+          Your IP Asset is now ready for liquidity pool creation!`);
+
+        // Reset form
+        setIpTitle('');
+        setIpDescription('');
+        setIpImageUrl('');
+        setShowRegistrationForm(false);
+
+        // Refresh IP assets list
+        const assets = await fetchWalletIPAssets(walletAddress, primaryWallet);
+        setIpAssets(assets);
+
+      } else {
+        setError(result.error || 'Failed to register IP Asset');
+      }
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Failed to register IP Asset');
+    } finally {
+      setRegisteringIP(false);
     }
   };
 
@@ -802,7 +1020,7 @@ export default function LiquidityPage() {
                       <Alert variant="destructive">
                         <Unlock className="h-4 w-4" />
                         <AlertDescription>
-                          You need to unlock royalty tokens before creating a liquidity pool.
+                          You need to get royalty tokens before creating a liquidity pool. This will create a license and transfer tokens to your wallet.
                         </AlertDescription>
                       </Alert>
                       
@@ -819,8 +1037,8 @@ export default function LiquidityPage() {
                           </>
                         ) : (
                           <>
-                            <Unlock className="mr-2 h-4 w-4" />
-                            Unlock Royalty Tokens
+                            <Coins className="mr-2 h-4 w-4" />
+                            Get Royalty Tokens
                           </>
                         )}
                       </Button>
