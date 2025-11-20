@@ -10,7 +10,36 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Plus, Wallet, AlertCircle, CheckCircle, Crown, TrendingUp, ExternalLink, Unlock, Coins, Droplets, Database, ArrowUpDown, Percent } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Progress } from "@/components/ui/progress";
+import { Separator } from "@/components/ui/separator";
+import { 
+  Loader2, 
+  Plus, 
+  Wallet, 
+  AlertCircle, 
+  CheckCircle, 
+  Crown, 
+  TrendingUp, 
+  ExternalLink, 
+  Unlock, 
+  Coins, 
+  Droplets, 
+  Database, 
+  ArrowUpDown, 
+  Percent,
+  Sparkles,
+  Zap,
+  Shield,
+  BarChart3,
+  PieChart,
+  Activity,
+  ArrowRight,
+  ChevronRight,
+  Star,
+  Flame,
+  Gem
+} from "lucide-react";
 import { 
   fetchWalletIPAssets, 
   approveRoyaltyTokensDynamic,
@@ -799,85 +828,125 @@ Try checking your wallet directly or refresh the page!`);
   };
 
   return (
-    <div className="min-h-screen bg-linear-to-br from-gray-900 via-purple-900 to-gray-900">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900/20 to-slate-900">
       <style jsx>{`
         .slider::-webkit-slider-thumb {
           appearance: none;
           width: 20px;
           height: 20px;
-          background: #3b82f6;
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
           cursor: pointer;
           border-radius: 50%;
           border: 2px solid white;
-          box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+          box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
         }
         .slider::-moz-range-thumb {
           width: 20px;
           height: 20px;
-          background: #3b82f6;
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
           cursor: pointer;
           border-radius: 50%;
           border: 2px solid white;
-          box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+          box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+        .glass-effect {
+          background: rgba(255, 255, 255, 0.05);
+          backdrop-filter: blur(10px);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .glow-effect {
+          box-shadow: 0 0 20px rgba(102, 126, 234, 0.3);
         }
       `}</style>
       <Navigation />
-      <main className="container mx-auto px-4 py-8">
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-white mb-4">
-            Create Liquidity Pools from IP Assets
+      <main className="container mx-auto px-4 py-12">
+        {/* Hero Section */}
+        <div className="text-center mb-12">
+          <div className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-purple-500/20 to-blue-500/20 rounded-full mb-6 border border-purple-500/30">
+            <Sparkles className="w-4 h-4 text-purple-400 mr-2" />
+            <span className="text-sm font-medium text-purple-300">Royalty Token Liquidity Protocol</span>
+          </div>
+          
+          <h1 className="text-6xl font-bold bg-gradient-to-r from-white via-purple-200 to-white bg-clip-text text-transparent mb-6 leading-tight">
+            Monetize Your IP Assets
           </h1>
-          <p className="text-lg text-white/80 max-w-3xl mx-auto">
-            Create liquidity pools using WIP tokens paired with your IP asset royalty tokens. 
-            Each IP asset with royalty tokens can be paired with WIP (Wrapped IP) tokens.
+          
+          <p className="text-xl text-slate-300 max-w-4xl mx-auto mb-8 leading-relaxed">
+            Create liquidity pools for your royalty tokens and unlock the full potential of your intellectual property through decentralized finance
           </p>
           
+          <div className="flex justify-center items-center space-x-12 mb-8">
+            <div className="flex items-center space-x-3">
+              <div className="p-2 bg-purple-500/20 rounded-lg border border-purple-500/30">
+                <Shield className="w-5 h-5 text-purple-400" />
+              </div>
+              <span className="text-slate-300">Secure</span>
+            </div>
+            <div className="flex items-center space-x-3">
+              <div className="p-2 bg-blue-500/20 rounded-lg border border-blue-500/30">
+                <Zap className="w-5 h-5 text-blue-400" />
+              </div>
+              <span className="text-slate-300">Fast</span>
+            </div>
+            <div className="flex items-center space-x-3">
+              <div className="p-2 bg-purple-500/20 rounded-lg border border-purple-500/30">
+                <Gem className="w-5 h-5 text-purple-400" />
+              </div>
+              <span className="text-slate-300">Valuable</span>
+            </div>
+          </div>
+          
           {/* Wallet Status */}
-          <div className="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-green-100 text-green-800 rounded-full">
-            <Wallet className="h-4 w-4" />
-            <span className="text-sm font-medium">
-              Connected: {walletAddress?.slice(0, 6)}...{walletAddress?.slice(-4)}
+          <div className="inline-flex items-center gap-3 px-6 py-3 glass-effect rounded-full">
+            <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+            <Wallet className="h-4 w-4 text-green-400" />
+            <span className="text-sm font-medium text-green-400">
+              {walletAddress?.slice(0, 6)}...{walletAddress?.slice(-4)}
             </span>
           </div>
         </div>
 
         {/* Error and Success Messages */}
         {error && (
-          <Alert variant="destructive" className="mb-6">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
+          <div className="mb-6 p-4 glass-effect rounded-xl border border-red-500/30 bg-red-500/10">
+            <div className="flex items-start space-x-3">
+              <AlertCircle className="h-5 w-5 text-red-400 mt-0.5" />
+              <p className="text-red-300 text-sm leading-relaxed">{error}</p>
+            </div>
+          </div>
         )}
 
         {success && (
-          <Alert className="mb-6 border-green-200 bg-green-50">
-            <CheckCircle className="h-4 w-4 text-green-600" />
-            <AlertDescription className="text-green-800">{success}</AlertDescription>
-          </Alert>
+          <div className="mb-6 p-4 glass-effect rounded-xl border border-green-500/30 bg-green-500/10">
+            <div className="flex items-start space-x-3">
+              <CheckCircle className="h-5 w-5 text-green-400 mt-0.5" />
+              <p className="text-green-300 text-sm leading-relaxed whitespace-pre-line">{success}</p>
+            </div>
+          </div>
         )}
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* IP Assets List */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Crown className="h-5 w-5" />
-                Your IP Assets with Royalty Tokens
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
+          <div className="glass-effect rounded-2xl p-6 glow-effect">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="p-2 bg-purple-500/20 rounded-lg border border-purple-500/30">
+                <Crown className="h-5 w-5 text-purple-400" />
+              </div>
+              <h2 className="text-xl font-semibold text-white">Your IP Assets</h2>
+            </div>
+            <div className="space-y-3">
               {loading ? (
-                <div className="flex items-center justify-center py-8">
-                  <Loader2 className="h-6 w-6 animate-spin" />
-                  <span className="ml-2">Fetching IP assets...</span>
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="h-6 w-6 animate-spin text-purple-400" />
+                  <span className="ml-3 text-slate-300">Fetching IP assets...</span>
                 </div>
               ) : ipAssets.length === 0 ? (
-                <Alert>
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertDescription>
-                    No IP assets with royalty tokens found. Create IP assets first to enable liquidity pool creation.
-                  </AlertDescription>
-                </Alert>
+                <div className="p-6 glass-effect rounded-xl border border-slate-500/30">
+                  <div className="flex items-center space-x-3">
+                    <AlertCircle className="h-5 w-5 text-slate-400" />
+                    <p className="text-slate-300">No IP assets with royalty tokens found</p>
+                  </div>
+                </div>
               ) : (
                 <div className="space-y-3">
                   {ipAssets.map((ipAsset) => {
@@ -887,17 +956,24 @@ Try checking your wallet directly or refresh the page!`);
                     return (
                       <div
                         key={ipAsset.ipId}
-                        className={`p-4 border rounded-lg cursor-pointer transition-colors ${
+                        className={`p-4 glass-effect rounded-xl cursor-pointer transition-all duration-300 ${
                           selectedIP === ipAsset.ipId
-                            ? "border-blue-500 bg-blue-50"
-                            : "border-gray-200 hover:border-gray-300"
+                            ? "border-purple-500/50 bg-purple-500/10 glow-effect"
+                            : "border-slate-500/30 hover:border-purple-500/50 hover:bg-purple-500/5"
                         }`}
                         onClick={() => setSelectedIP(ipAsset.ipId)}
                       >
                         <div className="flex items-start justify-between">
                           <div className="flex-1">
-                            <h3 className="font-medium text-gray-900">{ipAsset.name}</h3>
-                            <p className="text-sm text-gray-600 mt-1">{ipAsset.description}</p>
+                            <div className="flex items-center space-x-2 mb-2">
+                              <h3 className="font-semibold text-white">{ipAsset.name}</h3>
+                              {hasTokens && (
+                                <div className="px-2 py-1 bg-green-500/20 rounded-full border border-green-500/30">
+                                  <span className="text-xs text-green-400">Active</span>
+                                </div>
+                              )}
+                            </div>
+                            <p className="text-sm text-slate-400 leading-relaxed">{ipAsset.description}</p>
                             <div className="mt-2 text-xs text-gray-500">
                               <p>IP ID: {ipAsset.ipId.slice(0, 10)}...</p>
                               <p>Royalty Vault: {ipAsset.royaltyVaultAddress.slice(0, 10)}...</p>
@@ -905,28 +981,34 @@ Try checking your wallet directly or refresh the page!`);
                             
                             {/* Token Balance Display */}
                             {tokenBalance && (
-                              <div className="mt-2 flex items-center gap-2">
-                                <Coins className="h-3 w-3 text-yellow-600" />
-                                <span className="text-xs font-medium">
-                                  {tokenBalance.balance} {tokenBalance.symbol}
-                                </span>
-                                {hasTokens ? (
-                                  <span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
-                                    Available
-                                  </span>
-                                ) : (
-                                  <span className="px-2 py-1 bg-orange-100 text-orange-800 text-xs rounded-full">
-                                    Needs Unlock
-                                  </span>
-                                )}
+                              <div className="mt-3 p-3 bg-slate-800/50 rounded-lg border border-slate-600/30">
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-2">
+                                    <div className="p-1 bg-yellow-500/20 rounded border border-yellow-500/30">
+                                      <Coins className="h-3 w-3 text-yellow-400" />
+                                    </div>
+                                    <span className="text-sm font-medium text-white">
+                                      {tokenBalance.formattedBalance} {tokenBalance.symbol}
+                                    </span>
+                                  </div>
+                                  {hasTokens ? (
+                                    <div className="px-2 py-1 bg-green-500/20 rounded-full border border-green-500/30">
+                                      <span className="text-xs text-green-400">Available</span>
+                                    </div>
+                                  ) : (
+                                    <div className="px-2 py-1 bg-orange-500/20 rounded-full border border-orange-500/30">
+                                      <span className="text-xs text-orange-400">Needs Unlock</span>
+                                    </div>
+                                  )}
+                                </div>
                               </div>
                             )}
                           </div>
                           <div className="flex items-center gap-2">
                             {ipAsset.hasRoyaltyTokens && (
-                              <span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
-                                Has Royalty Tokens
-                              </span>
+                              <div className="px-2 py-1 bg-purple-500/20 rounded-full border border-purple-500/30">
+                                <span className="text-xs text-purple-400">Royalty Ready</span>
+                              </div>
                             )}
                           </div>
                         </div>
@@ -935,38 +1017,38 @@ Try checking your wallet directly or refresh the page!`);
                   })}
                 </div>
               )}
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
           {/* Pool Creation Form */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Plus className="h-5 w-5" />
-                Create Liquidity Pool
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-6">
+          <div className="glass-effect rounded-2xl p-6 glow-effect">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="p-2 bg-blue-500/20 rounded-lg border border-blue-500/30">
+                <Plus className="h-5 w-5 text-blue-400" />
+              </div>
+              <h2 className="text-xl font-semibold text-white">Create Liquidity Pool</h2>
+            </div>
+            <div className="space-y-6">
               {!selectedIPAsset ? (
-                <Alert>
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertDescription>
-                    Select an IP asset from the left to create a liquidity pool.
-                  </AlertDescription>
-                </Alert>
+                <div className="p-6 glass-effect rounded-xl border border-slate-500/30">
+                  <div className="flex items-center space-x-3">
+                    <AlertCircle className="h-5 w-5 text-slate-400" />
+                    <p className="text-slate-300">Select an IP asset to create a liquidity pool</p>
+                  </div>
+                </div>
               ) : (
                 <div className="space-y-4">
-                  <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                    <h3 className="font-medium text-blue-900 mb-2">Selected IP Asset</h3>
-                    <p className="text-sm text-blue-800">{selectedIPAsset.name}</p>
-                    <p className="text-xs text-blue-600 mt-1">
+                  <div className="p-4 glass-effect rounded-xl border border-blue-500/30 bg-blue-500/10">
+                    <h3 className="font-medium text-blue-300 mb-2">Selected IP Asset</h3>
+                    <p className="text-sm text-blue-200">{selectedIPAsset.name}</p>
+                    <p className="text-xs text-blue-400 mt-1">
                       Royalty Token: {selectedIPAsset.royaltyVaultAddress.slice(0, 10)}...
                     </p>
                   </div>
 
-                  <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
-                    <h3 className="font-medium text-green-900 mb-2">Story Protocol Pool Details</h3>
-                    <div className="text-sm text-green-800 space-y-1">
+                  <div className="p-4 glass-effect rounded-xl border border-green-500/30 bg-green-500/10">
+                    <h3 className="font-medium text-green-300 mb-2">Story Protocol Pool Details</h3>
+                    <div className="text-sm text-green-200 space-y-1">
                       <p>• Royalty Token: {selectedIPAsset.royaltyVaultAddress.slice(0, 10)}...</p>
                       <p>• Native IP: Will be wrapped to WIP automatically</p>
                       <p>• Final Pair: Royalty Token + WIP</p>
@@ -976,11 +1058,11 @@ Try checking your wallet directly or refresh the page!`);
 
                   {/* Liquidity Input Section */}
                   <div className="space-y-4">
-                    <h3 className="font-medium text-gray-900">Liquidity Amounts</h3>
+                    <h3 className="font-medium text-white mb-4">Liquidity Amounts</h3>
                     
                     <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <Label htmlFor="royaltyAmount">Royalty Token Amount</Label>
+                      <div className="space-y-2">
+                        <Label htmlFor="royaltyAmount" className="text-slate-300">Royalty Token Amount</Label>
                         <Input
                           id="royaltyAmount"
                           type="number"
@@ -989,12 +1071,13 @@ Try checking your wallet directly or refresh the page!`);
                           placeholder="1000"
                           min="0"
                           step="0.01"
+                          className="bg-slate-800/50 border-slate-600 text-white placeholder:text-slate-500 focus:border-purple-500 focus:ring-purple-500/20"
                         />
-                        <p className="text-xs text-gray-500 mt-1">Amount of royalty tokens</p>
+                        <p className="text-xs text-slate-500">Amount of royalty tokens</p>
                       </div>
                       
-                      <div>
-                        <Label htmlFor="wipAmount">Native IP Amount</Label>
+                      <div className="space-y-2">
+                        <Label htmlFor="wipAmount" className="text-slate-300">Native IP Amount</Label>
                         <Input
                           id="wipAmount"
                           type="number"
@@ -1003,42 +1086,53 @@ Try checking your wallet directly or refresh the page!`);
                           placeholder="1000"
                           min="0"
                           step="0.01"
+                          className="bg-slate-800/50 border-slate-600 text-white placeholder:text-slate-500 focus:border-purple-500 focus:ring-purple-500/20"
                         />
-                        <p className="text-xs text-gray-500 mt-1">Native IP (will be wrapped to WIP)</p>
+                        <p className="text-xs text-slate-500">Native IP (will be wrapped to WIP)</p>
                       </div>
                     </div>
                     
-                    <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                      <p className="text-sm text-blue-800">
-                        <strong>Pool Preview:</strong> {royaltyAmount || '0'} Royalty Tokens + {wipAmount || '0'} IP → WIP
+                    <div className="p-4 glass-effect rounded-xl border border-purple-500/30 bg-purple-500/10">
+                      <div className="flex items-center space-x-2 mb-2">
+                        <BarChart3 className="h-4 w-4 text-purple-400" />
+                        <p className="text-sm font-medium text-purple-300">Pool Preview</p>
+                      </div>
+                      <p className="text-sm text-purple-200">
+                        {royaltyAmount || '0'} Royalty Tokens + {wipAmount || '0'} IP → WIP
                       </p>
                     </div>
                   </div>
 
                   {needsUnlock && (
-                    <div className="space-y-3">
-                      <Alert variant="destructive">
-                        <Unlock className="h-4 w-4" />
-                        <AlertDescription>
-                          You need to get royalty tokens before creating a liquidity pool. This will create a license and transfer tokens to your wallet.
-                        </AlertDescription>
-                      </Alert>
+                    <div className="space-y-4">
+                      <div className="p-4 glass-effect rounded-xl border border-orange-500/30 bg-orange-500/10">
+                        <div className="flex items-center space-x-3">
+                          <Unlock className="h-5 w-5 text-orange-400" />
+                          <div>
+                            <p className="text-sm font-medium text-orange-300">Royalty Tokens Required</p>
+                            <p className="text-xs text-orange-400 mt-1">
+                              Get royalty tokens before creating a liquidity pool. This will create a license and transfer tokens to your wallet.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
                       
                       <Button
                         onClick={() => handleUnlockTokens(selectedIPAsset)}
                         disabled={unlockingTokens === selectedIPAsset.ipId}
-                        className="w-full"
-                        variant="outline"
+                        className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white border-0 shadow-lg shadow-purple-500/25 transition-all duration-300"
+                        size="lg"
                       >
                         {unlockingTokens === selectedIPAsset.ipId ? (
                           <>
                             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            Unlocking Tokens...
+                            Getting Royalty Tokens...
                           </>
                         ) : (
                           <>
                             <Coins className="mr-2 h-4 w-4" />
                             Get Royalty Tokens
+                            <ArrowRight className="ml-2 h-4 w-4" />
                           </>
                         )}
                       </Button>
@@ -1055,7 +1149,7 @@ Try checking your wallet directly or refresh the page!`);
                       parseFloat(wipAmount) <= 0 || 
                       parseFloat(royaltyAmount) <= 0
                     }
-                    className="w-full"
+                    className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white border-0 shadow-lg shadow-green-500/25 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
                     size="lg"
                   >
                     {creatingPool === selectedIPAsset.ipId ? (
@@ -1066,121 +1160,129 @@ Try checking your wallet directly or refresh the page!`);
                     ) : (
                       <>
                         <TrendingUp className="mr-2 h-4 w-4" />
-                        Create Story Protocol Pool ({royaltyAmount || '0'} RT + {wipAmount || '0'} IP)
+                        Create Liquidity Pool
+                        <div className="ml-2 text-sm opacity-90">
+                          ({royaltyAmount || '0'} RT + {wipAmount || '0'} IP)
+                        </div>
                       </>
                     )}
                   </Button>
                 </div>
               )}
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </div>
 
         {/* User Pools Section */}
-        <div className="mt-12">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Droplets className="h-5 w-5" />
-                Your Liquidity Pools
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
+        <div className="mt-16">
+          <div className="glass-effect rounded-2xl p-6 glow-effect">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="p-2 bg-cyan-500/20 rounded-lg border border-cyan-500/30">
+                <Droplets className="h-5 w-5 text-cyan-400" />
+              </div>
+              <h2 className="text-xl font-semibold text-white">Your Liquidity Pools</h2>
+            </div>
+            <div>
               {poolsLoading ? (
-                <div className="flex items-center justify-center py-8">
-                  <Loader2 className="h-6 w-6 animate-spin" />
-                  <span className="ml-2">Loading your pools...</span>
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="h-6 w-6 animate-spin text-cyan-400" />
+                  <span className="ml-3 text-slate-300">Loading your pools...</span>
                 </div>
               ) : poolsError ? (
-                <Alert variant="destructive">
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertDescription>{poolsError}</AlertDescription>
-                </Alert>
+                <div className="p-6 glass-effect rounded-xl border border-red-500/30 bg-red-500/10">
+                  <div className="flex items-center space-x-3">
+                    <AlertCircle className="h-5 w-5 text-red-400" />
+                    <p className="text-red-300">{poolsError}</p>
+                  </div>
+                </div>
               ) : userPools.length === 0 ? (
-                <Alert>
-                  <Database className="h-4 w-4" />
-                  <AlertDescription>
-                    You don't have any liquidity pools yet. Create your first pool above!
-                  </AlertDescription>
-                </Alert>
+                <div className="p-8 glass-effect rounded-xl border border-slate-500/30 text-center">
+                  <div className="flex flex-col items-center space-y-3">
+                    <div className="p-3 bg-slate-700/50 rounded-full border border-slate-600/30">
+                      <Database className="h-8 w-8 text-slate-400" />
+                    </div>
+                    <p className="text-slate-300 font-medium">No Liquidity Pools Yet</p>
+                    <p className="text-slate-500 text-sm">Create your first pool above to start earning!</p>
+                  </div>
+                </div>
               ) : (
                 <div className="space-y-6">
                   {/* Pool Cards with Add/Remove Liquidity */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {userPools.map((pool) => (
-                      <Card key={pool.id} className="hover:shadow-lg transition-shadow">
-                        <CardHeader className="pb-3">
-                          <CardTitle className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              <Droplets className="h-4 w-4 text-blue-500" />
-                              <span className="text-sm">
+                      <div key={pool.id} className="glass-effect rounded-xl p-5 hover:border-cyan-500/50 transition-all duration-300 glow-effect">
+                        <div className="flex items-center justify-between mb-4">
+                          <div className="flex items-center gap-3">
+                            <div className="p-2 bg-cyan-500/20 rounded-lg border border-cyan-500/30">
+                              <Droplets className="h-4 w-4 text-cyan-400" />
+                            </div>
+                            <div>
+                              <h3 className="font-semibold text-white text-sm">
                                 {pool.token0?.symbol ?? "UNKNOWN"} / {pool.token1?.symbol ?? "UNKNOWN"}
-                              </span>
+                              </h3>
+                              <div className="flex items-center gap-2 mt-1">
+                                <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                                <span className="text-xs text-green-400">Active</span>
+                              </div>
                             </div>
-                            <Badge variant="secondary" className="text-xs">
-                              Your Pool
-                            </Badge>
-                          </CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-3">
+                          </div>
+                          <div className="px-2 py-1 bg-purple-500/20 rounded-full border border-purple-500/30">
+                            <span className="text-xs text-purple-400">Your Pool</span>
+                          </div>
+                        </div>
+                        <div className="space-y-4">
                           {/* Token Information */}
-                          <div className="space-y-2">
-                            <div className="flex justify-between items-center">
-                              <span className="text-xs text-gray-600">Token 0:</span>
-                              <span className="text-xs font-medium">
-                                {pool.token0?.symbol ?? "UNKNOWN"}
-                              </span>
-                            </div>
-                            <div className="flex justify-between items-center">
-                              <span className="text-xs text-gray-600">Token 1:</span>
-                              <span className="text-xs font-medium">
-                                {pool.token1?.symbol ?? "UNKNOWN"}
+                          <div className="p-3 bg-slate-800/50 rounded-lg border border-slate-600/30">
+                            <div className="flex justify-between items-center mb-2">
+                              <span className="text-xs text-slate-400">Token Pair:</span>
+                              <span className="text-xs font-medium text-white">
+                                {pool.token0?.symbol ?? "UNKNOWN"} / {pool.token1?.symbol ?? "UNKNOWN"}
                               </span>
                             </div>
                           </div>
 
                           {/* Pool Stats */}
-                          <div className="space-y-2 pt-2 border-t">
+                          <div className="space-y-3">
                             <div className="flex justify-between items-center">
-                              <span className="text-xs text-gray-600">Reserve 0:</span>
-                              <span className="text-xs font-medium">
+                              <span className="text-xs text-slate-400">Reserve 0:</span>
+                              <span className="text-xs font-medium text-white">
                                 {formatNumber(pool.reserve0)}
                               </span>
                             </div>
                             <div className="flex justify-between items-center">
-                              <span className="text-xs text-gray-600">Reserve 1:</span>
-                              <span className="text-xs font-medium">
+                              <span className="text-xs text-slate-400">Reserve 1:</span>
+                              <span className="text-xs font-medium text-white">
                                 {formatNumber(pool.reserve1)}
                               </span>
                             </div>
                             <div className="flex justify-between items-center">
-                              <span className="text-xs text-gray-600">Volume USD:</span>
-                              <span className="text-xs font-medium text-green-600">
+                              <span className="text-xs text-slate-400">Volume USD:</span>
+                              <span className="text-xs font-medium text-green-400">
                                 ${formatNumber(pool.volumeUSD)}
                               </span>
                             </div>
                             <div className="flex justify-between items-center">
-                              <span className="text-xs text-gray-600">Your LP Balance:</span>
-                              <span className="text-xs font-medium text-blue-600">
+                              <span className="text-xs text-slate-400">Your LP Balance:</span>
+                              <span className="text-xs font-medium text-cyan-400">
                                 {pool.userLpBalance || "0"} LP
                               </span>
                             </div>
                             <div className="flex justify-between items-center">
-                              <span className="text-xs text-gray-600">Your Share:</span>
-                              <span className="text-xs font-medium text-purple-600">
+                              <span className="text-xs text-slate-400">Your Share:</span>
+                              <span className="text-xs font-medium text-purple-400">
                                 {pool.userLpPercentage?.toFixed(2) || "0.00"}%
                               </span>
                             </div>
                             <div className="flex justify-between items-center">
-                              <span className="text-xs text-gray-600">Created:</span>
-                              <span className="text-xs font-medium">
+                              <span className="text-xs text-slate-400">Created:</span>
+                              <span className="text-xs font-medium text-white">
                                 {formatDate(pool.createdAtTimestamp)}
                               </span>
                             </div>
                           </div>
 
                           {/* Add/Remove Liquidity Buttons */}
-                          <div className="pt-2 border-t space-y-2">
+                          <div className="pt-4 border-t border-slate-600/30 space-y-3">
                             <Button
                               onClick={() => {
                                 setSelectedPoolForLiquidity(pool);
@@ -1192,10 +1294,9 @@ Try checking your wallet directly or refresh the page!`);
                                 setLiquidityAmount1("");
                               }}
                               size="sm"
-                              className="w-full"
-                              variant="outline"
+                              className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white border-0 shadow-lg shadow-green-500/25 transition-all duration-300"
                             >
-                              <Plus className="h-3 w-3 mr-1" />
+                              <Plus className="h-3 w-3 mr-2" />
                               Add Liquidity
                             </Button>
                             <Button
@@ -1209,15 +1310,14 @@ Try checking your wallet directly or refresh the page!`);
                                 setLiquidityAmount1("");
                               }}
                               size="sm"
-                              className="w-full"
-                              variant="outline"
+                              className="w-full bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700 text-white border-0 shadow-lg shadow-orange-500/25 transition-all duration-300"
                             >
-                              <TrendingUp className="h-3 w-3 mr-1" />
+                              <TrendingUp className="h-3 w-3 mr-2" />
                               Remove Liquidity
                             </Button>
                           </div>
-                        </CardContent>
-                      </Card>
+                        </div>
+                      </div>
                     ))}
                   </div>
 
@@ -1476,8 +1576,8 @@ Try checking your wallet directly or refresh the page!`);
                   )}
                 </div>
               )}
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </div>
       </main>
     </div>

@@ -804,11 +804,12 @@ export async function createPoolDynamic(
         args: [userAddress as Address],
       });
       
-      const balanceFormatted = Number(balance) / 1e18;
+      const balanceFormatted = Number(balance) / 1e6; // 6 decimals for royalty tokens
       console.log('💰 User RT token balance:', balanceFormatted);
       
       // If user has very small balance, use that instead of the requested amount
-      const requestedAmount = parseEther(amountToken);
+      // Royalty tokens use 6 decimals, not 18!
+      const requestedAmount = BigInt(parseFloat(amountToken) * 1000000); // 6 decimals
       const availableBalance = Number(balance);
       
       if (availableBalance < requestedAmount) {
@@ -838,11 +839,11 @@ export async function createPoolDynamic(
     });
     
     // Use the smaller of: requested amount or available balance
-    const requestedAmount = parseEther(amountToken);
+    const requestedAmount = BigInt(parseFloat(amountToken) * 1000000); // 6 decimals
     const availableBalance = Number(balance);
     const actualAmountToUse = availableBalance < requestedAmount ? balance : requestedAmount;
     
-    console.log('💰 Using RT amount:', Number(actualAmountToUse) / 1e18, 'RT');
+    console.log('💰 Using RT amount:', Number(actualAmountToUse) / 1e6, 'RT');
     
     // Encode addLiquidityIP function data
     const data = encodeFunctionData({
