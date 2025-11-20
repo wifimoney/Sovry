@@ -1,13 +1,11 @@
 # Sovry DEX - IP Asset Trading Platform
 
-A decentralized exchange for Intellectual Property assets built on Story Protocol.
+Sovry is the first decentralized exchange (AMM) specifically designed for the Story Protocol ecosystem. It enables creators to bootstrap liquidity for their IP Assets instantly and allows investors to trade Royalty Tokens (RT).
 
 ## 🏗️ Architecture
 
 - **Frontend**: Next.js 16 with TypeScript
 - **Backend**: Express.js API server  
-- **Blockchain**: Story Protocol Aeneid Testnet
-- **Protocol**: Dynamic.xyz for wallet integration
 
 ## 🔗 API Endpoints
 
@@ -26,9 +24,35 @@ A decentralized exchange for Intellectual Property assets built on Story Protoco
 
 ### Environment Variables
 ```bash
-# Story Protocol API (Staging)
+# --- Blockchain ---
+PRIVATE_KEY=your_wallet_private_key
+NEXT_PUBLIC_STORY_RPC_URL=[https://aeneid.storyrpc.io](https://aeneid.storyrpc.io)
+
+# --- Story Protocol API ---
 NEXT_PUBLIC_STORY_API_KEY=your_api_key_here
-NEXT_PUBLIC_STORY_RPC_URL=https://aeneid.storyrpc.io
+
+# --- Dynamic.xyz Wallet ---
+NEXT_PUBLIC_DYNAMIC_ENVIRONMENT_ID=your_environment_id
+
+# --- Backend API ---
+NEXT_PUBLIC_API_URL=http://localhost:3001
+
+# --- Goldsky & Database ---
+GOLDSKY_API_URL=[https://api.goldsky.com/](https://api.goldsky.com/)...
+DATABASE_URL=postgres://user:pass@localhost:5432/sovry_db
+
+
+2. Start Development
+
+# Install dependencies
+npm install
+
+# Start both Frontend and Backend (concurrently)
+npm run dev
+
+# Access the apps:
+# Frontend: http://localhost:3000
+# Backend: http://localhost:3001
 
 # Dynamic.xyz Wallet
 NEXT_PUBLIC_DYNAMIC_ENVIRONMENT_ID=your_environment_id
@@ -51,6 +75,7 @@ npm run dev
 - **Home**: Trending IP assets with NFT-style display
 - **Portfolio**: Track IP asset holdings and royalties
 - **Pool Analysis**: Detailed IP asset metadata and license terms
+- **Liquidty**: Unlock Royalty Token and Add liquidity to your IP assets
 - **Trading**: Swap interface for IP asset tokens
 - **Revenue**: Royalty claiming and tracking
 
