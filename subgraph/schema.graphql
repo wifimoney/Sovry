@@ -3,6 +3,9 @@ type Factory @entity {
   poolCount: BigInt!
   totalVolumeUSD: BigDecimal!
   totalLiquidityUSD: BigDecimal!
+  totalFeesUSD: BigDecimal!
+  # Grade Startup: Advanced metrics
+  untrackedVolumeUSD: BigDecimal!
 }
 
 type Pool @entity {
@@ -27,6 +30,11 @@ type Token @entity {
   volume: BigDecimal!
   volumeUSD: BigDecimal!
   txCount: BigInt!
+  
+  # Grade Startup: Price tracking
+  derivedETH: BigDecimal!  # Price in WIP
+  derivedUSD: BigDecimal!  # Price in USD
+  whitelistPools: [Pool!]! # Pools for price calculation
   
   # [BARU] Link ke IP Asset (Jika token ini adalah Royalty Token)
   ipAsset: IPAsset
@@ -110,4 +118,45 @@ type RoyaltyPayment @entity(immutable: true) {
   payer: Bytes!               # Pengirim
   timestamp: BigInt!          # Waktu
   txHash: Bytes!              # Hash Transaksi
+}
+
+# ---------------------------------------------------------
+# GRADE STARTUP: DAILY ANALYTICS
+# ---------------------------------------------------------
+
+type PoolDayData @entity {
+  id: ID!                     # "pool-address-day"
+  date: Int!                  # Unix timestamp for start of day
+  pool: Pool!
+  volumeUSD: BigDecimal!
+  volumeToken0: BigDecimal!
+  volumeToken1: BigDecimal!
+  tvlUSD: BigDecimal!
+  reserve0: BigDecimal!
+  reserve1: BigDecimal!
+  reserveUSD: BigDecimal!
+  txCount: BigInt!
+  feesUSD: BigDecimal!
+}
+
+type TokenDayData @entity {
+  id: ID!                     # "token-address-day"
+  date: Int!                  # Unix timestamp for start of day
+  token: Token!
+  volumeUSD: BigDecimal!
+  volume: BigDecimal!
+  tvlUSD: BigDecimal!
+  priceUSD: BigDecimal!
+  txCount: BigInt!
+  totalLiquidityUSD: BigDecimal!
+}
+
+type FactoryDayData @entity {
+  id: ID!                     # "day"
+  date: Int!                  # Unix timestamp for start of day
+  totalVolumeUSD: BigDecimal!
+  totalVolumeETH: BigDecimal!
+  totalLiquidityUSD: BigDecimal!
+  totalLiquidityETH: BigDecimal!
+  txCount: BigInt!
 }

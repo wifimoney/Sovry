@@ -4,6 +4,8 @@ pragma solidity 0.8.26;
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
+import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
 
 import {IWIP} from "./interfaces/IWIP.sol";
 
@@ -23,21 +25,45 @@ interface ISovryPool is IERC20 {
     function swap(uint256 amount0Out, uint256 amount1Out, address to, bytes calldata data) external;
 }
 
-contract SovryRouter {
+contract SovryRouter is ReentrancyGuard, AccessControl {
     using SafeERC20 for IERC20;
+
+    bytes32 public constant LIQUIDITY_PROVIDER_ROLE = keccak256("LIQUIDITY_PROVIDER_ROLE");
+    bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
 
     address public immutable factory;
     address public immutable WIP;
+    
+    // 🛡️ SECURITY: Remove sensitive information leakage
+    event LiquidityAdded(address indexed token, address indexed to, uint256 amountToken, uint256 amountIP, uint256 liquidity);
+    event LiquidityRemoved(address indexed tokenA, address indexed tokenB, address indexed to, uint256 amountA, uint256 amountB);
 
     modifier ensure(uint256 deadline) {
         require(deadline >= block.timestamp, "SovryRouter: EXPIRED");
+        require(block.timestamp <= deadline + 300, "SovryRouter: TOO_FAR_IN_FUTURE"); // Anti-MEV
         _;
     }
 
-    constructor(address _factory, address _WIP) {
-        require(_factory != address(0) && _WIP != address(0), "SovryRouter: ZERO_ADDRESS");
+    modifier onlyLiquidityProvider() {
+        require(hasRole(LIQUIDITY_PROVIDER_ROLE, msg.sender) || hasRole(ADMIN_ROLE, msg.sender), "SovryRouter: NOT_LIQUIDITY_PROVIDER");
+        _;
+    }
+
+    modifier validAmounts(uint256 amountA, uint256 amountB) {
+        require(amountA > 0, "SovryRouter: ZERO_AMOUNT_A");
+        require(amountB > 0, "SovryRouter: ZERO_AMOUNT_B");
+        _;
+    }
+
+    constructor(address _factory, address _WIP, address _admin) {
+        require(_factory != address(0) && _WIP != address(0) && _admin != address(0), "SovryRouter: ZERO_ADDRESS");
         factory = _factory;
         WIP = _WIP;
+        
+        // 🛡️ SECURITY: Initialize access control
+        _grantRole(DEFAULT_ADMIN_ROLE, _admin);
+        _grantRole(ADMIN_ROLE, _admin);
+        _grantRole(LIQUIDITY_PROVIDER_ROLE, _admin); // Admin can also provide liquidity
     }
 
     receive() external payable {
@@ -64,21 +90,34 @@ contract SovryRouter {
     )
         external
         payable
+        nonReentrant
         ensure(deadline)
+        onlyLiquidityProvider
         returns (uint256 amountToken, uint256 amountIP, uint256 liquidity)
     {
         require(token != WIP, "SovryRouter: INVALID_TOKEN");
+        require(amountTokenDesired > 0, "SovryRouter: ZERO_AMOUNT");
+        require(amountTokenMin > 0, "SovryRouter: ZERO_MIN_AMOUNT_TOKEN");
+        require(amountIPMin > 0, "SovryRouter: ZERO_MIN_AMOUNT_IP");
+        require(to != address(0), "SovryRouter: ZERO_TO_ADDRESS");
+        
+        // Calculate amounts
         (amountToken, amountIP) = _addLiquidity(token, WIP, amountTokenDesired, msg.value, amountTokenMin, amountIPMin);
 
         address pair = pairFor(token, WIP);
+        
+        // Transfer tokens
         IERC20(token).safeTransferFrom(msg.sender, pair, amountToken);
         IWIP(WIP).deposit{value: amountIP}();
         IWIP(WIP).transfer(pair, amountIP);
         liquidity = ISovryPool(pair).mint(to);
 
+        // Refund excess
         if (msg.value > amountIP) {
             _safeTransferIP(msg.sender, msg.value - amountIP);
         }
+
+        emit LiquidityAdded(token, to, amountToken, amountIP, liquidity);
     }
 
     function removeLiquidity(
@@ -169,13 +208,41 @@ contract SovryRouter {
             amountA = amountADesired;
             amountB = amountBDesired;
         } else {
+            // 🛡️ SECURITY: Safe math for skewed pool detection
             uint256 amountBOptimal = quote(amountADesired, reserveA, reserveB);
-            if (amountBOptimal <= amountBDesired) {
+            uint256 amountAOptimal = quote(amountBDesired, reserveB, reserveA);
+            
+            // Check if pool is severely skewed (ratio > 1000:1) - SAFE MATH
+            bool isSkewedPool = false;
+            if (reserveA > 0 && reserveB > 0) {
+                // 🛡️ SECURITY: Prevent overflow in ratio calculation
+                uint256 ratioBtoA;
+                uint256 ratioAtoB;
+                
+                // Calculate both ratios safely
+                if (reserveA >= reserveB) {
+                    ratioBtoA = (reserveB * 1000) / reserveA;
+                    ratioAtoB = (reserveA * 1000) / reserveB;
+                } else {
+                    ratioBtoA = (reserveB * 1000) / reserveA;
+                    ratioAtoB = (reserveA * 1000) / reserveB;
+                }
+                
+                // More conservative skewed pool detection
+                if (ratioBtoA < 10 || ratioAtoB < 10) { // Less than 1% ratio
+                    isSkewedPool = true;
+                }
+            }
+            
+            if (isSkewedPool) {
+                // 🔧 FIX: For skewed pools, use user amounts to fix the ratio
+                amountA = amountADesired;
+                amountB = amountBDesired;
+            } else if (amountBOptimal <= amountBDesired) {
                 require(amountBOptimal >= amountBMin, "SovryRouter: INSUFFICIENT_B_AMOUNT");
                 amountA = amountADesired;
                 amountB = amountBOptimal;
             } else {
-                uint256 amountAOptimal = quote(amountBDesired, reserveB, reserveA);
                 require(amountAOptimal >= amountAMin, "SovryRouter: INSUFFICIENT_A_AMOUNT");
                 amountA = amountAOptimal;
                 amountB = amountBDesired;

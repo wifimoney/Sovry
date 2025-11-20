@@ -1,0 +1,18 @@
+{
+  "name": "sovry-contracts",
+  "version": "1.0.0",
+  "description": "Sovry DEX Smart Contracts",
+  "scripts": {
+    "compile": "hardhat compile",
+    "deploy": "hardhat run scripts/deploy.js --network storyTestnet",
+    "deploy:ankr": "hardhat run scripts/deploy.js --network storyTestnetAnkr",
+    "verify": "hardhat verify --network storyTestnet"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^6.1.0",
+    "hardhat": "^2.22.0"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "^5.0.0"
+  }
+}

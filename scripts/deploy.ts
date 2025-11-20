@@ -33,8 +33,8 @@ async function main() {
   console.log("💰 Account balance:", ethers.utils.formatEther(balance), "IP");
   console.log("");
 
-  // Deploy SovryFactory
-  console.log("🏭 Deploying SovryFactory...");
+  // Deploy SECURE SovryFactory
+  console.log("🏭 Deploying SECURE SovryFactory...");
   const SovryFactory = await ethers.getContractFactory("SovryFactory");
   const WIP_ADDRESS = "0x1514000000000000000000000000000000000000";
   const factory = await SovryFactory.deploy(WIP_ADDRESS, ownerAddress, ownerAddress, ownerAddress);
@@ -43,19 +43,31 @@ async function main() {
   await factory.deployed();
   
   const factoryAddress = factory.address;
-  console.log("✅ SovryFactory deployed to:", factoryAddress);
+  console.log("✅ FIXED SovryFactory deployed to:", factoryAddress);
   console.log("");
 
-  // Deploy SovryRouter
-  console.log("🔀 Deploying SovryRouter...");
+  // Deploy SECURE SovryRouter
+  console.log("🔀 Deploying SECURE SovryRouter to secure factory...");
   const SovryRouter = await ethers.getContractFactory("SovryRouter");
-  const router = await SovryRouter.deploy(factoryAddress, WIP_ADDRESS);
+  const router = await SovryRouter.deploy(factoryAddress, WIP_ADDRESS, ownerAddress);
   
   console.log("⏳ Waiting for deployment confirmation...");
   await router.deployed();
   
   const routerAddress = router.address;
-  console.log("✅ SovryRouter deployed to:", routerAddress);
+  console.log("✅ FIXED SovryRouter deployed to:", routerAddress);
+  console.log("");
+
+  // Deploy FIXED SovryPool (for new pools)
+  console.log("🏊 Deploying FIXED SovryPool...");
+  const SovryPool = await ethers.getContractFactory("SovryPool");
+  const pool = await SovryPool.deploy();
+  
+  console.log("⏳ Waiting for deployment confirmation...");
+  await pool.deployed();
+  
+  const poolAddress = pool.address;
+  console.log("✅ FIXED SovryPool deployed to:", poolAddress);
   console.log("");
 
   // Verify contracts (skip if SKIP_VERIFICATION is true)
@@ -65,38 +77,20 @@ async function main() {
     console.log("🔍 Starting contract verification...");
     
     try {
-      console.log("📋 Verifying SovryFactory...");
-      await hre.run("verify:verify", {
-        address: factoryAddress,
-        constructorArguments: [WIP_ADDRESS, ownerAddress, ownerAddress, ownerAddress],
-        network: "aeneid"
-      });
-      console.log("✅ SovryFactory verified successfully!");
-    } catch (error: any) {
-      if (error.message.includes("Already Verified")) {
-        console.log("✅ SovryFactory already verified!");
-      } else if (error.message.includes("not supported for contract verification")) {
-        console.log("⚠️ Verification not supported on this network");
-      } else {
-        console.error("❌ SovryFactory verification failed:", error.message);
-      }
-    }
-
-    try {
-      console.log("📋 Verifying SovryRouter...");
+      console.log("📋 Verifying FIXED SovryRouter...");
       await hre.run("verify:verify", {
         address: routerAddress,
         constructorArguments: [factoryAddress, WIP_ADDRESS],
         network: "aeneid"
       });
-      console.log("✅ SovryRouter verified successfully!");
+      console.log("✅ FIXED SovryRouter verified successfully!");
     } catch (error: any) {
       if (error.message.includes("Already Verified")) {
-        console.log("✅ SovryRouter already verified!");
+        console.log("✅ FIXED SovryRouter already verified!");
       } else if (error.message.includes("not supported for contract verification")) {
         console.log("⚠️ Verification not supported on this network");
       } else {
-        console.error("❌ SovryRouter verification failed:", error.message);
+        console.error("❌ FIXED SovryRouter verification failed:", error.message);
       }
     }
   } else {
@@ -107,25 +101,32 @@ async function main() {
   console.log("🎉 Deployment completed successfully!");
   console.log("");
   console.log("📋 Contract Addresses:");
-  console.log("🏭 SovryFactory:", factoryAddress);
-  console.log("🔀 SovryRouter:", routerAddress);
+  console.log("🏭 SovryFactory (Existing):", factoryAddress);
+  console.log("🔀 FIXED SovryRouter:", routerAddress);
+  console.log("🏊 FIXED SovryPool:", poolAddress);
   console.log("");
   console.log("🌐 Explorer Links:");
   console.log(`🏭 Factory: https://storyscan.xyz/address/${factoryAddress}`);
-  console.log(`🔀 Router: https://storyscan.xyz/address/${routerAddress}`);
+  console.log(`🔀 FIXED Router: https://storyscan.xyz/address/${routerAddress}`);
+  console.log(`🏊 FIXED Pool: https://storyscan.xyz/address/${poolAddress}`);
   console.log("");
   
   // Save deployment info to environment file format
   const envContent = `
-# Contract Addresses (Aeneid Testnet)
+# FIXED Contract Addresses (Aeneid Testnet)
+SOVRY_ROUTER_ADDRESS="${routerAddress}"
+NEXT_PUBLIC_ROUTER_ADDRESS="${routerAddress}"
+SOVRY_POOL_ADDRESS="${poolAddress}"
+
+# Existing Factory
 FACTORY_ADDRESS="${factoryAddress}"
-ROUTER_ADDRESS="${routerAddress}"
 
 # Deployment Info
 DEPLOYER="${deployer.address}"
 OWNER="${ownerAddress}"
 NETWORK="aeneid"
 TIMESTAMP="${new Date().toISOString()}"
+FIXED_CONTRACTS_DEPLOYED="true"
 `;
   
   console.log("📝 Environment variables for .env file:");

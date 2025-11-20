@@ -65,10 +65,10 @@ import {
 import { liquidityService } from "@/services/liquidityService";
 
 // Sovry Router Address for UI display
-const SOVRY_ROUTER_ADDRESS = '0x67f00093dEA379B14bE70ef3B12b478107c97349';
+const SOVRY_ROUTER_ADDRESS = '0x1cfE0b6E0324F2368314648Cc68a1990aE636F4F';
 
-// Goldsky API endpoint from env
-const GOLDSKY_API_URL = process.env.NEXT_PUBLIC_GOLDSKY_API_URL;
+// Grade Startup Goldsky API endpoint from env
+const GOLDSKY_API_URL = "https://api.goldsky.com/api/public/project_cmhxop6ixrx0301qpd4oi5bb4/subgraphs/sovry-aeneid/1.1.0/gn";
 
 // Types for user pools
 interface UserPool {
@@ -118,8 +118,8 @@ export default function LiquidityPage() {
   const [success, setSuccess] = useState<string | null>(null);
   const [selectedIP, setSelectedIP] = useState<string>("");
   const [tokenAddress, setTokenAddress] = useState("");
-  const [wipAmount, setWipAmount] = useState("1000");
-  const [royaltyAmount, setRoyaltyAmount] = useState("1000");
+  const [wipAmount, setWipAmount] = useState("1");
+  const [royaltyAmount, setRoyaltyAmount] = useState("1");
   const [tokenBalances, setTokenBalances] = useState<Record<string, TokenBalance>>({});
   const [unlockingTokens, setUnlockingTokens] = useState<string | null>(null);
   const [claimingRevenue, setClaimingRevenue] = useState<string | null>(null);
@@ -568,8 +568,8 @@ Try checking your wallet directly or refresh the page!`);
       // setIpAssets(prev => prev.filter(asset => asset.ipId !== ipAsset.ipId));
       setSelectedIP("");
       setTokenAddress("");
-      setWipAmount("1000");
-      setRoyaltyAmount("1000");
+      setWipAmount("1");
+      setRoyaltyAmount("1");
 
     } catch (error) {
       console.error('WIP pair creation error:', error);

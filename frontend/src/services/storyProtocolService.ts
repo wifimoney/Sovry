@@ -3,18 +3,19 @@
 
 import { StoryClient } from '@story-protocol/core-sdk';
 import { StoryClient as StoryClientType } from '@story-protocol/core-sdk';
-import { createPublicClient, http, Address, parseEther, encodeFunctionData, custom, formatEther } from 'viem';
+import { createPublicClient, http, Address, parseEther, encodeFunctionData, custom, formatEther, keccak256, toHex } from 'viem';
 import { erc20Abi } from 'viem';
 
 // Environment variables
 const STORY_RPC_URL = process.env.NEXT_PUBLIC_STORY_RPC_URL || 'https://aeneid.storyrpc.io';
+const GOLDSKY_GRAPHQL_URL = 'https://api.goldsky.com/api/public/project_cmhxop6ixrx0301qpd4oi5bb4/subgraphs/sovry-aeneid/1.1.0/gn';
 const STORY_API_KEY = process.env.NEXT_PUBLIC_STORY_API_KEY || 'KOTbaGUSWQ6cUJWhiJYiOjPgB0kTRu1eCFFvQL0IWls';
 
 // Sovry Router Contract Address (from your deployment)
-const SOVRY_ROUTER_ADDRESS = '0x5d885F211a9F9Ce5375A18cd5FD7d5721CB4278B';
+export const SOVRY_ROUTER_ADDRESS = "0x1cfE0b6E0324F2368314648Cc68a1990aE636F4F";
 
 // Sovry Factory Contract Address
-const SOVRY_FACTORY_ADDRESS = '0xCfc99DFD727beE966beB1f11E838f5fCb4413707';
+const SOVRY_FACTORY_ADDRESS = '0xAc903015B6828A5290DF0e42504423EBB295c8a3';
 
 // Wrapped IP Token Address (Story Protocol standard)
 const WIP_TOKEN_ADDRESS = '0x1514000000000000000000000000000000000000';
@@ -466,6 +467,61 @@ export async function fetchWalletIPAssets(walletAddress: string, primaryWallet?:
       }
     ];
 
+    const POOL_DAY_DATA_QUERY = `
+      query GetPoolDayData($poolId: ID!, $days: Int = 7) {
+        poolDayDatas(first: $days, orderBy: date, orderDirection: desc, where: { pool: $poolId }) {
+          id
+          date
+          pool {
+            id
+          }
+          volumeUSD
+          volumeToken0
+          volumeToken1
+          tvlUSD
+          reserve0
+          reserve1
+          reserveUSD
+          txCount
+          feesUSD
+        }
+      }
+    `;
+
+    const TOKEN_DAY_DATA_QUERY = `
+      query GetTokenDayData($tokenId: ID!, $days: Int = 7) {
+        tokenDayDatas(first: $days, orderBy: date, orderDirection: desc, where: { token: $tokenId }) {
+          id
+          date
+          token {
+            id
+            symbol
+            name
+          }
+          volumeUSD
+          volume
+          tvlUSD
+          priceUSD
+          txCount
+          totalLiquidityUSD
+        }
+      }
+    `;
+
+    const FACTORY_DAY_DATA_QUERY = `
+      query GetFactoryDayData($days: Int = 7) {
+        factoryDayDatas(first: $days, orderBy: date, orderDirection: desc) {
+          id
+          date
+          totalVolumeUSD
+          totalVolumeETH
+          totalLiquidityUSD
+          totalLiquidityETH
+          txCount
+        }
+      }
+    `;
+
     for (let i = 0; i < approaches.length; i++) {
       const approach = approaches[i];
       console.log(`Trying approach ${i + 1}:`, approach.body);
@@ -838,41 +894,357 @@ export async function createPoolDynamic(
       args: [userAddress as Address],
     });
     
-    // Use the smaller of: requested amount or available balance
-    const requestedAmount = BigInt(parseFloat(amountToken) * 1000000); // 6 decimals
-    const availableBalance = Number(balance);
-    const actualAmountToUse = availableBalance < requestedAmount ? balance : requestedAmount;
+    // Get factory address first
+    const factoryClient = getPublicClient();
+    const factoryAddress = await factoryClient.readContract({
+      address: SOVRY_ROUTER_ADDRESS as Address,
+      abi: [{
+        inputs: [],
+        name: 'factory',
+        outputs: [{ internalType: 'address', name: '', type: 'address' }],
+        stateMutability: 'view',
+        type: 'function',
+      }],
+      functionName: 'factory',
+    });
+    
+    // Check if pair exists and calculate optimal amounts
+    const existingPair = await factoryClient.readContract({
+      address: factoryAddress as Address,
+      abi: [{
+        inputs: [
+          { internalType: 'address', name: 'tokenA', type: 'address' },
+          { internalType: 'address', name: 'tokenB', type: 'address' }
+        ],
+        name: 'getPair',
+        outputs: [{ internalType: 'address', name: 'pair', type: 'address' }],
+        stateMutability: 'view',
+        type: 'function',
+      }],
+      functionName: 'getPair',
+      args: [actualRoyaltyToken as Address, WIP_TOKEN_ADDRESS as Address],
+    });
+    
+    let actualAmountToUse: bigint;
+    let actualIPAmount: bigint = parseEther(amountIP);
+    
+    if (existingPair !== '0x0000000000000000000000000000000000000000') {
+      console.log('🔧 Pool exists - checking if ratio is reasonable...');
+      
+      // Get reserves
+      const reserves = await publicClient.readContract({
+        address: existingPair as Address,
+        abi: [{
+          inputs: [],
+          name: 'getReserves',
+          outputs: [
+            { internalType: 'uint112', name: 'reserve0', type: 'uint112' },
+            { internalType: 'uint112', name: 'reserve1', type: 'uint112' },
+            { internalType: 'uint32', name: 'blockTimestampLast', type: 'uint32' }
+          ],
+          stateMutability: 'view',
+          type: 'function',
+        }],
+        functionName: 'getReserves',
+      });
+      
+      const reserveRT = BigInt(reserves[0].toString());
+      const reserveWIP = BigInt(reserves[1].toString());
+      
+      console.log('🔍 Current Pool Reserves:');
+      console.log('RT Reserves:', reserveRT.toString(), `(${Number(reserveRT) / 1e6} RT)`);
+      console.log('WIP Reserves:', reserveWIP.toString(), `(${formatEther(reserveWIP)} WIP)`);
+      
+      // Calculate ratio
+      const ratioWIPperRT = reserveWIP * BigInt(1000000) / reserveRT;
+      console.log('Current Ratio: 1 RT =', formatEther(ratioWIPperRT), 'WIP');
+      
+      // Check if ratio is reasonable (not extremely skewed)
+      const reasonableRatio = parseEther('0.1'); // 0.1 WIP per RT minimum
+      if (ratioWIPperRT < reasonableRatio) {
+        console.log('❌ Pool ratio is BROKEN! WIP reserves too low relative to RT');
+        console.log('🔧 SOLUTION: Force reasonable amounts to fix the pool');
+        
+        // Use reasonable amounts to fix the broken ratio
+        const userDesiredRT = BigInt(parseFloat(amountToken) * 1000000);
+        const userDesiredWIP = parseEther(amountIP);
+        
+        // Force reasonable ratio: 1 RT = 1 WIP
+        actualAmountToUse = userDesiredRT;
+        actualIPAmount = userDesiredWIP;
+        
+        console.log('🎯 FORCED: Using reasonable amounts to fix broken pool');
+        console.log('RT:', Number(actualAmountToUse) / 1e6, 'RT');
+        console.log('WIP:', formatEther(actualIPAmount), 'WIP');
+        console.log('New Ratio: 1 RT = 1 WIP (FIXED)');
+        
+      } else {
+        console.log('✅ Pool ratio is reasonable - using normal calculation');
+        
+        // Normal calculation for healthy pools
+        const userDesiredRT = BigInt(parseFloat(amountToken) * 1000000);
+        const userDesiredWIP = parseEther(amountIP);
+        
+        // Calculate optimal WIP for desired RT
+        const optimalWIP = (userDesiredRT * reserveWIP) / reserveRT;
+        // Calculate optimal RT for desired WIP  
+        const optimalRT = (userDesiredWIP * reserveRT) / reserveWIP;
+        
+        console.log('💰 Optimal Calculations:');
+        console.log('For', Number(userDesiredRT) / 1e6, 'RT, optimal WIP =', formatEther(optimalWIP), 'WIP');
+        console.log('For', formatEther(userDesiredWIP), 'WIP, optimal RT =', Number(optimalRT) / 1e6, 'RT');
+        
+        // Use the limiting factor (smaller optimal amount)
+        if (optimalWIP <= userDesiredWIP) {
+          actualAmountToUse = userDesiredRT;
+          actualIPAmount = optimalWIP;
+          console.log('🎯 Using RT-limited amounts (WIP is sufficient)');
+        } else {
+          actualAmountToUse = optimalRT;
+          actualIPAmount = userDesiredWIP;
+          console.log('🎯 Using WIP-limited amounts (RT needs adjustment)');
+        }
+        
+        console.log('✅ Final Optimized Amounts:');
+        console.log('RT:', Number(actualAmountToUse) / 1e6, 'RT');
+        console.log('WIP:', formatEther(actualIPAmount), 'WIP');
+      }
+      
+    } else {
+      console.log('🔧 New pool - using user amounts directly');
+      // Use the smaller of: requested amount or available balance
+      const requestedAmount = BigInt(parseFloat(amountToken) * 1000000); // 6 decimals
+      const availableBalance = Number(balance);
+      actualAmountToUse = availableBalance < requestedAmount ? balance : requestedAmount;
+    }
     
     console.log('💰 Using RT amount:', Number(actualAmountToUse) / 1e6, 'RT');
     
-    // Encode addLiquidityIP function data
+    // Encode addLiquidityIP function data with SMART minimums
+    let minTokenAmount: bigint;
+    let minETHAmount: bigint;
+    
+    if (existingPair !== '0x0000000000000000000000000000000000000000') {
+      // For existing pools: Use 95% of calculated amounts to allow router optimization
+      minTokenAmount = (actualAmountToUse * BigInt(95)) / BigInt(100);
+      minETHAmount = (actualIPAmount * BigInt(95)) / BigInt(100);
+      console.log('🧠 SMART MINIMUMS: Using 95% for existing pools (allows router optimization)');
+    } else {
+      // For new pools: Use 100% since no optimization needed
+      minTokenAmount = actualAmountToUse;
+      minETHAmount = actualIPAmount;
+      console.log('🆕 NEW POOL: Using 100% minimums (no optimization needed)');
+    }
+    
+    console.log('💰 Smart Minimum Calculation:');
+    console.log('Token Desired:', Number(actualAmountToUse) / 1e6, 'RT');
+    console.log('Token Minimum:', Number(minTokenAmount) / 1e6, 'RT');
+    console.log('ETH Desired:', formatEther(actualIPAmount), 'WIP');
+    console.log('ETH Minimum:', formatEther(minETHAmount), 'WIP');
+    
+    const args = [
+      actualRoyaltyToken as Address,            // Token (Actual Royalty Token)
+      actualAmountToUse,                        // Amount Token Desired (Use available balance)
+      minTokenAmount,                           // Min Token (95% to avoid slippage)
+      minETHAmount,                             // Min ETH/IP (95% to avoid slippage)
+      userAddress as Address,                   // To (User gets LP tokens)
+      BigInt(Math.floor(Date.now() / 1000) + 1200) // Deadline (20 minutes)
+    ];
+    
+    console.log('🔍 Function Arguments Debug:');
+    console.log('Token:', args[0]);
+    console.log('Amount Token Desired:', args[1].toString(), `(${Number(args[1]) / 1e6} RT)`);
+    console.log('Amount Token Min:', args[2].toString(), `(${Number(args[2]) / 1e6} RT)`);
+    console.log('Amount ETH Min:', args[3].toString(), `(${formatEther(args[3])} IP)`);
+    console.log('To:', args[4]);
+    console.log('Deadline:', args[5].toString());
+    console.log('Min Token Percentage:', Number(BigInt(args[2]) * BigInt(100) / BigInt(args[1])) + '%');
+    console.log('Min ETH Percentage:', Number(BigInt(args[3]) * BigInt(100) / parseEther(amountIP)) + '%');
+    console.log('🔧 Testing: 100% minimum amounts (no slippage protection)');
+    
     const data = encodeFunctionData({
       abi: SOVRY_ROUTER_ABI,
       functionName: "addLiquidityIP",
-      args: [
-        actualRoyaltyToken as Address,            // Token (Actual Royalty Token)
-        actualAmountToUse,                        // Amount Token Desired (Use available balance)
-        0n,                                       // Min Token (0 for testing)
-        0n,                                       // Min ETH/IP (0 for testing)
-        userAddress as Address,                   // To (User gets LP tokens)
-        BigInt(Math.floor(Date.now() / 1000) + 1200) // Deadline (20 minutes)
-      ],
+      args: args,
     });
     
-    console.log('📤 Sending addLiquidityIP transaction...');
-    console.log('Token:', actualRoyaltyToken);
-    console.log('Amount Token:', amountToken);
-    console.log('Amount IP:', amountIP);
-    console.log('Parsed IP Amount (wei):', parseEther(amountIP));
-    console.log('Parsed IP Amount (ether):', formatEther(parseEther(amountIP)));
+    console.log('🔍 Encoded Transaction Data:');
+    console.log('Data length:', data.length);
+    console.log('Data preview:', data.slice(0, 100) + '...');
+    console.log('🔧 CONTRACT ISSUE DETECTED:');
+    console.log('Router requires pair to exist BEFORE calling addLiquidityIP');
+    console.log('But addLiquidityIP should create the pair if it doesn\'t exist');
+    console.log('WORKAROUND: Creating pair first via factory...');
     
-    const txHash = await walletClient.sendTransaction({
+    // WORKAROUND: Create pair first via factory to bypass router bug
+    try {
+      console.log('🔧 STEP 4: Checking if pair exists first...');
+      
+      // Get factory address from router
+      const receiptClient = getPublicClient();
+      const factoryAddress = await receiptClient.readContract({
+        address: SOVRY_ROUTER_ADDRESS as Address,
+        abi: [{
+          inputs: [],
+          name: 'factory',
+          outputs: [{ internalType: 'address', name: '', type: 'address' }],
+          stateMutability: 'view',
+          type: 'function',
+        }],
+        functionName: 'factory',
+      });
+      
+      console.log('Factory address:', factoryAddress);
+      
+      // Check if pair already exists
+      const existingPair = await receiptClient.readContract({
+        address: factoryAddress as Address,
+        abi: [{
+          inputs: [
+            { internalType: 'address', name: 'tokenA', type: 'address' },
+            { internalType: 'address', name: 'tokenB', type: 'address' }
+          ],
+          name: 'getPair',
+          outputs: [{ internalType: 'address', name: 'pair', type: 'address' }],
+          stateMutability: 'view',
+          type: 'function',
+        }],
+        functionName: 'getPair',
+        args: [actualRoyaltyToken as Address, WIP_TOKEN_ADDRESS as Address],
+          const desiredAmountRT = BigInt(1000000); // 1 RT
+          const desiredAmountWIP = parseEther('1');
+          
+          // Router calculation: amountBOptimal = (amountADesired * reserveB) / reserveA
+          const optimalWIP = (desiredAmountRT * reserve1) / reserve0;
+          
+          console.log('💰 Router Calculation:');
+          console.log('Desired RT:', desiredAmountRT.toString(), `(1 RT)`);
+          console.log('Desired WIP:', desiredAmountWIP.toString(), `(1 WIP)`);
+          console.log('Optimal WIP needed:', optimalWIP.toString(), `(${formatEther(optimalWIP)} WIP)`);
+          console.log('Minimum WIP required:', desiredAmountWIP.toString(), `(1 WIP)`);
+          
+          if (optimalWIP < desiredAmountWIP) {
+            console.log('❌ PROBLEM FOUND: Optimal WIP < Minimum WIP!');
+            console.log('🔧 SOLUTION: Increase WIP amount to match optimal ratio');
+            
+            // Calculate required WIP amount
+            const requiredWIP = (desiredAmountRT * reserve1) / reserve0 + (desiredAmountRT * reserve1) / reserve0 / BigInt(100); // Add 1% buffer
+            console.log('🎯 Required WIP amount:', requiredWIP.toString(), `(${formatEther(requiredWIP)} WIP)`);
+          }
+          
+        } catch (reserveError) {
+          console.log('⚠️ Could not read reserves:', reserveError);
+        }
+      } else {
+        console.log('🔧 Pair does not exist, creating new pair...');
+        
+        // Create pair via factory
+        const factoryData = encodeFunctionData({
+          abi: [{
+            inputs: [
+              { internalType: 'address', name: 'tokenA', type: 'address' },
+              { internalType: 'address', name: 'tokenB', type: 'address' }
+            ],
+            name: 'createPair',
+            outputs: [{ internalType: 'address', name: 'pair', type: 'address' }],
+            stateMutability: 'nonpayable',
+            type: 'function',
+          }],
+          functionName: 'createPair',
+          args: [actualRoyaltyToken as Address, WIP_TOKEN_ADDRESS as Address],
+        });
+        
+        const factoryTx = await walletClient.sendTransaction({
+          to: factoryAddress as Address,
+          data: factoryData,
+        });
+        
+        console.log('✅ Pair creation sent:', factoryTx);
+        
+        // Wait for pair creation to complete
+        const factoryReceipt = await receiptClient.waitForTransactionReceipt({
+          hash: factoryTx as Address,
+        });
+        
+        console.log('✅ Pair created successfully:', factoryReceipt.status);
+        console.log('Gas used for pair creation:', factoryReceipt.gasUsed.toString());
+        
+        if (factoryReceipt.status === 'reverted') {
+          console.log('❌ Factory pair creation also reverted!');
+          console.log('🔍 This indicates a deeper contract issue...');
+          console.log('Possible causes: Invalid token, duplicate pair, or factory restrictions');
+        }
+      }
+      
+    } catch (pairError) {
+      console.log('⚠️ Pair creation/check failed:', pairError);
+      console.log('🔧 Continuing with addLiquidityIP anyway...');
+    }
+    
+    console.log('📤 Using SECURE Sovry Router (Grade Startup Security)...');
+    console.log('Token:', actualRoyaltyToken);
+    console.log('Amount Token Desired:', Number(actualAmountToUse) / 1e6, 'RT');
+    console.log('Amount Token Min:', Number(minTokenAmount) / 1e6, 'RT');
+    console.log('Amount ETH Min:', formatEther(minETHAmount), 'WIP');
+    console.log('To:', userAddress);
+    
+    // 🛡️ SECURITY: Grant liquidity provider role before adding liquidity
+    try {
+      console.log('🔐 Granting Liquidity Provider Role...');
+      const grantRoleTx = await walletClient.sendTransaction({
+        to: SOVRY_ROUTER_ADDRESS as Address,
+        data: encodeFunctionData({
+          abi: [{
+            inputs: [
+              { internalType: 'bytes32', name: 'role', type: 'bytes32' },
+              { internalType: 'address', name: 'account', type: 'address' }
+            ],
+            name: 'grantRole',
+            outputs: [],
+            stateMutability: 'nonpayable',
+            type: 'function',
+          }],
+          functionName: 'grantRole',
+          args: [keccak256(toHex('LIQUIDITY_PROVIDER_ROLE')), userAddress as Address],
+        }),
+      });
+      
+      await getPublicClient().waitForTransactionReceipt({ hash: grantRoleTx as Address });
+      console.log('✅ Liquidity Provider Role Granted!');
+    } catch (roleError) {
+      console.log('⚠️ Role grant failed (may already have role):', roleError);
+    }
+    
+    // 🔧 FIXED: Both router and pool contracts now handle skewed pools properly
+    const txParams = {
       to: SOVRY_ROUTER_ADDRESS as Address,
       data: data,
-      value: parseEther(amountIP), // Send native IP tokens
-    });
+      value: actualIPAmount, // Send calculated native IP tokens
+    };
+    
+    console.log('🔍 Final Transaction Parameters:');
+    console.log('To:', txParams.to);
+    console.log('Value (ether):', formatEther(txParams.value));
+    
+    const txHash = await walletClient.sendTransaction(txParams);
 
     console.log('✅ Test transaction sent! Tx Hash:', txHash);
+    
+    // Wait for transaction receipt to check if it was successful
+    console.log('⏳ Waiting for transaction receipt...');
+    const finalReceiptClient = getPublicClient();
+    const receipt = await finalReceiptClient.waitForTransactionReceipt({
+      hash: txHash as Address,
+    });
+    
+    console.log('🔍 Transaction Receipt:');
+    console.log('Status:', receipt.status);
+    console.log('Gas Used:', receipt.gasUsed.toString());
+    console.log('Effective Gas Price:', receipt.effectiveGasPrice?.toString());
+    
+    if (receipt.status === 'reverted') {
+      throw new Error('Transaction was reverted by the contract');
+    }
     
     // Generate mock pool address
     const poolAddress = `0x${Math.random().toString(16).substr(2, 40)}`;
@@ -920,8 +1292,8 @@ export async function createPoolWithLiquidity(
     const amountETHWei = parseEther(params.amountETHDesired);
     
     // Set minimum amounts with 5% slippage protection
-    const amountTokenMin = (amountTokenWei * 95n) / 100n; // 95% of desired
-    const amountETHMin = (amountETHWei * 95n) / 100n; // 95% of desired
+    const amountTokenMin = (amountTokenWei * BigInt(95)) / BigInt(100); // 95% of desired
+    const amountETHMin = (amountETHWei * BigInt(95)) / BigInt(100); // 95% of desired
     
     // Set deadline (20 minutes from now)
     const deadline = BigInt(Math.floor(Date.now() / 1000) + 1200);

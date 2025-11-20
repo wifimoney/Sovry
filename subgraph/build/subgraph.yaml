@@ -6,9 +6,9 @@ dataSources:
     name: SovryFactory
     network: story-aeneid
     source:
-      address: "0xCfc99DFD727beE966beB1f11E838f5fCb4413707"
+      address: "0xAc903015B6828A5290DF0e42504423EBB295c8a3"
       abi: SovryFactory
-      startBlock: 11269900
+      startBlock: 11332680
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.7
@@ -32,7 +32,7 @@ dataSources:
     source:
       address: "0xD2f60c40fEbccf6311f8B47c4f2Ec6b040400086"
       abi: RoyaltyModule
-      startBlock: 900000
+      startBlock: 0
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.7

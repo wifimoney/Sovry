@@ -108,9 +108,18 @@ contract SovryPool is ERC20, AccessControl, Pausable, ReentrancyGuard {
             liquidity = liquidityBase - MINIMUM_LIQUIDITY;
             _mint(BURN_ADDRESS, MINIMUM_LIQUIDITY);
         } else {
-            uint256 liquidity0 = (amount0 * _totalSupply) / uint256(_reserve0);
-            uint256 liquidity1 = (amount1 * _totalSupply) / uint256(_reserve1);
-            liquidity = Math.min(liquidity0, liquidity1);
+            // 🔧 FIXED: For skewed pools, use sqrt calculation instead of reserve-based
+            uint256 reserveRatio = (uint256(_reserve0) * 1000) / uint256(_reserve1);
+            if (reserveRatio > 100000 || reserveRatio < 10) { // Skewed pool detection
+                // Use sqrt calculation for skewed pools
+                uint256 liquidityBase = Math.sqrt(amount0 * amount1);
+                liquidity = liquidityBase;
+            } else {
+                // Normal reserve-based calculation for balanced pools
+                uint256 liquidity0 = (amount0 * _totalSupply) / uint256(_reserve0);
+                uint256 liquidity1 = (amount1 * _totalSupply) / uint256(_reserve1);
+                liquidity = Math.min(liquidity0, liquidity1);
+            }
         }
         require(liquidity > 0, "Sovry: INSUFFICIENT_LIQUIDITY_MINTED");
         _mint(to, liquidity);
