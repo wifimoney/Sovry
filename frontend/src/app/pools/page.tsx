@@ -787,14 +787,16 @@ export default function PoolsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-linear-to-br from-gray-900 via-purple-900 to-gray-900">
+    <div className="min-h-screen bg-gradient-to-b from-background via-background to-background/95">
       <Navigation />
       <main className="container mx-auto px-4 py-8">
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-white mb-4">
-            Liquidity Pools
+          <h1 className="text-4xl font-bold mb-4">
+            <span className="bg-gradient-to-r from-primary via-primary/80 to-primary bg-clip-text text-transparent">
+              Liquidity Pools
+            </span>
           </h1>
-          <p className="text-lg text-white/80 max-w-3xl mx-auto">
+          <p className="text-lg text-muted-foreground max-w-3xl mx-auto">
             View all liquidity pools on Sovry DEX. Data is sourced from the Goldsky subgraph for real-time pool information.
           </p>
         </div>
@@ -849,7 +851,7 @@ export default function PoolsPage() {
               onClick={debugSchema}
               variant="outline"
               size="sm"
-              className="text-white border-white/20 hover:bg-white/10"
+              className="w-full mt-4 bg-primary/10 hover:bg-primary/20 text-primary hover:text-foreground border-primary/40 hover:border-primary/60 transition-colors"
             >
               <AlertCircle className="h-4 w-4 mr-2" />
               Debug Schema
@@ -859,7 +861,7 @@ export default function PoolsPage() {
               disabled={loading}
               variant="outline"
               size="sm"
-              className="text-white border-white/20 hover:bg-white/10"
+              className="w-full mt-4 bg-primary/10 hover:bg-primary/20 text-primary hover:text-foreground border-primary/40 hover:border-primary/60 transition-colors"
             >
               {loading ? (
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />
@@ -873,7 +875,7 @@ export default function PoolsPage() {
               disabled={loading}
               variant="outline"
               size="sm"
-              className="text-white border-white/20 hover:bg-white/10"
+              className="w-full mt-4 bg-primary/10 hover:bg-primary/20 text-primary hover:text-foreground border-primary/40 hover:border-primary/60 transition-colors"
             >
               {loading ? (
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />
@@ -895,11 +897,11 @@ export default function PoolsPage() {
 
         {/* Loading State */}
         {loading && pools.length === 0 && (
-          <Card>
+          <Card className="bg-card/95 border border-border/80 shadow-lg">
             <CardContent className="py-12">
               <div className="flex items-center justify-center">
-                <Loader2 className="h-8 w-8 animate-spin mr-3" />
-                <span className="text-lg">Loading pools data from Goldsky...</span>
+                <Loader2 className="h-8 w-8 animate-spin mr-3 text-primary" />
+                <span className="text-lg text-foreground">Loading pools data from Goldsky...</span>
               </div>
             </CardContent>
           </Card>
@@ -907,11 +909,11 @@ export default function PoolsPage() {
 
         {/* Pools Grid */}
         {!loading && pools.length === 0 && !error && (
-          <Card>
+          <Card className="bg-card/95 border border-border/80 shadow-lg">
             <CardContent className="py-12 text-center">
-              <Database className="h-12 w-12 mx-auto mb-4 text-gray-400" />
-              <h3 className="text-lg font-medium mb-2">No Pools Found</h3>
-              <p className="text-gray-600">
+              <Database className="h-12 w-12 mx-auto mb-4 text-primary/80" />
+              <h3 className="text-xl font-semibold mb-2 text-foreground">No Pools Found</h3>
+              <p className="text-muted-foreground">
                 No liquidity pools are currently available on Sovry DEX.
               </p>
             </CardContent>
@@ -921,11 +923,11 @@ export default function PoolsPage() {
         {pools.length > 0 && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {pools.map((pool) => (
-                <Card key={pool.id} className="hover:shadow-lg transition-shadow">
+                <Card key={pool.id} className="bg-card/95 border border-border/80 hover:border-primary/40 hover:shadow-lg hover:shadow-primary/10 transition-all duration-300">
                   <CardHeader className="pb-3">
                     <CardTitle className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <Droplets className="h-5 w-5 text-blue-500" />
+                        <Droplets className="h-5 w-5 text-primary" />
                         <span className="text-lg">
                           {pool.token0?.symbol ?? "UNKNOWN"} / {pool.token1?.symbol ?? "UNKNOWN"}
                         </span>
@@ -946,7 +948,7 @@ export default function PoolsPage() {
                     {/* Token Information with Prices */}
                     <div className="space-y-2">
                       <div className="flex justify-between items-center">
-                        <span className="text-sm text-gray-600">Token 0:</span>
+                        <span className="text-muted-foreground">Token 0:</span>
                         <div className="text-right">
                           <div className="text-sm font-medium">
                             {pool.token0?.symbol ?? "UNKNOWN"}
@@ -959,7 +961,7 @@ export default function PoolsPage() {
                         </div>
                       </div>
                       <div className="flex justify-between items-center">
-                        <span className="text-sm text-gray-600">Token 1:</span>
+                        <span className="text-muted-foreground">Token 1:</span>
                         <div className="text-right">
                           <div className="text-sm font-medium">
                             {pool.token1?.symbol ?? "UNKNOWN"}
@@ -976,13 +978,13 @@ export default function PoolsPage() {
                     {/* Reserves */}
                     <div className="space-y-2">
                       <div className="flex justify-between items-center">
-                        <span className="text-sm text-gray-600">Reserve 0:</span>
+                        <span className="text-muted-foreground">Reserve 0:</span>
                         <span className="text-sm font-medium">
                           {formatNumber(pool.reserve0)}
                         </span>
                       </div>
                       <div className="flex justify-between items-center">
-                        <span className="text-sm text-gray-600">Reserve 1:</span>
+                        <span className="text-muted-foreground">Reserve 1:</span>
                         <span className="text-sm font-medium">
                           {formatNumber(pool.reserve1)}
                         </span>
@@ -994,7 +996,7 @@ export default function PoolsPage() {
                       {/* TVL USD - Most Important Metric */}
                       {pool.tvlUSD && pool.tvlUSD > 0 && (
                         <div className="flex justify-between items-center">
-                          <span className="text-sm text-gray-600 flex items-center">
+                          <span className="text-sm text-muted-foreground flex items-center">
                             <DollarSign className="h-4 w-4 mr-1" />
                             TVL:
                           </span>
@@ -1004,25 +1006,25 @@ export default function PoolsPage() {
                         </div>
                       )}
                       <div className="flex justify-between items-center">
-                        <span className="text-sm text-gray-600">Total Supply:</span>
+                        <span className="text-sm text-muted-foreground">Total Supply:</span>
                         <span className="text-sm font-medium">
                           {formatNumber(pool.totalSupply)}
                         </span>
                       </div>
                       <div className="flex justify-between items-center">
-                        <span className="text-sm text-gray-600">Volume USD:</span>
+                        <span className="text-sm text-muted-foreground">Volume (24h):</span>
                         <span className="text-sm font-medium text-green-600">
                           ${formatNumber(pool.volumeUSD)}
                         </span>
                       </div>
                       <div className="flex justify-between items-center">
-                        <span className="text-sm text-gray-600">Transactions:</span>
+                        <span className="text-sm text-muted-foreground">Transactions:</span>
                         <span className="text-sm font-medium">
                           {formatNumber(pool.txCount)}
                         </span>
                       </div>
                       <div className="flex justify-between items-center">
-                        <span className="text-sm text-gray-600">Created:</span>
+                        <span className="text-sm text-muted-foreground">Created:</span>
                         <span className="text-sm font-medium">
                           {formatDate(pool.createdAtTimestamp)}
                         </span>
@@ -1031,7 +1033,7 @@ export default function PoolsPage() {
                       {/* APR Display */}
                       {pool.apr && pool.apr > 0 && (
                         <div className="flex justify-between items-center">
-                          <span className="text-sm text-gray-600 flex items-center">
+                          <span className="text-sm text-muted-foreground flex items-center">
                             <TrendingUp className="h-4 w-4 mr-1" />
                             APR:
                           </span>
@@ -1044,7 +1046,7 @@ export default function PoolsPage() {
                       {/* User Position */}
                       {pool.userLpBalance && parseFloat(pool.userLpBalance) > 0 && (
                         <div className="flex justify-between items-center">
-                          <span className="text-sm text-gray-600">Your Position:</span>
+                          <span className="text-sm text-muted-foreground">Your Position:</span>
                           <span className="text-sm font-medium text-blue-600">
                             {pool.userLpBalance} LP ({pool.userSharePercentage?.toFixed(4)}%)
                           </span>
@@ -1055,15 +1057,15 @@ export default function PoolsPage() {
                   {/* Pool Address */}
                   <div className="pt-2 border-t">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs text-gray-500">Pool Address:</span>
+                      <span className="text-xs text-muted-foreground">Pool Address:</span>
                       <div className="flex items-center gap-1">
                         <span className="text-xs font-mono">
                           {pool.id.slice(0, 6)}...{pool.id.slice(-4)}
                         </span>
                         <Button
-                          variant="ghost"
+                          variant="outline"
                           size="sm"
-                          className="h-6 w-6 p-0"
+                          className="w-full bg-background/80 hover:bg-muted/80 text-foreground hover:text-foreground/90 border-border/60 hover:border-border transition-colors"
                           onClick={() => {
                             navigator.clipboard.writeText(pool.id);
                           }}

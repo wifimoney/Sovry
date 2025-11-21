@@ -15,12 +15,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
+    <html lang="en" className="dark">
       <body className={inter.className}>
         <Providers>
-          <div className="min-h-screen bg-linear-to-br from-gray-900 via-purple-900 to-gray-900">
-            {children}
-          </div>
+          {children}
         </Providers>
       </body>
     </html>
