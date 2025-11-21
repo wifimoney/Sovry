@@ -162,59 +162,6 @@ export default function PoolsPage() {
     }
   `;
 
-  // Fetch pools data from Goldsky subgraph with Redis caching and pricing
-  // Mock pools data for development when Goldsky is not available
-  const getMockPoolsData = (): Pool[] => {
-    return [
-      {
-        id: '0x5d885F211a9F9Ce5375A18cd5FD7d5721CB4278B',
-        token0: { 
-          symbol: 'WIP', 
-          name: 'Wrapped IP', 
-          id: '0x1514000000000000000000000000000000000000' 
-        },
-        token1: { 
-          symbol: 'RT', 
-          name: 'Royalty Token', 
-          id: '0xb6b837972cfb487451a71279fa78c327bb27646e' 
-        },
-        reserve0: '1000',
-        reserve1: '2000',
-        totalSupply: '3000',
-        volumeUSD: '1000',
-        txCount: '10',
-        createdAtTimestamp: '1699000000',
-        tvlUSD: 2500,
-        apr: 15.5,
-        feeApr: 2.5,
-        userLpBalance: '0'
-      },
-      {
-        id: '0x1234567890abcdef1234567890abcdef12345678',
-        token0: { 
-          symbol: 'IP', 
-          name: 'Story Protocol IP', 
-          id: '0x1514000000000000000000000000000000000000' 
-        },
-        token1: { 
-          symbol: 'USDC', 
-          name: 'USD Coin', 
-          id: '0xA0b86a33E6417c5a2c0c1a0c8e3e3e3e3e3e3e3e' 
-        },
-        reserve0: '500',
-        reserve1: '625',
-        totalSupply: '1125',
-        volumeUSD: '2500',
-        txCount: '25',
-        createdAtTimestamp: '1699100000',
-        tvlUSD: 1250,
-        apr: 8.2,
-        feeApr: 1.8,
-        userLpBalance: '0'
-      }
-    ];
-  };
-
   // Fetch pools directly from Story Protocol blockchain
   const fetchPoolsFromBlockchain = async () => {
     try {
@@ -235,8 +182,12 @@ export default function PoolsPage() {
         transport: http('https://aeneid.storyrpc.io'),
       });
 
-      // Sovry Factory contract address (would need to be deployed)
-      const FACTORY_ADDRESS = '0x5d885F211a9F9Ce5375A18cd5FD7d5721CB4278B';
+      // Sovry Factory contract address
+      const FACTORY_ADDRESS = process.env.NEXT_PUBLIC_FACTORY_ADDRESS;
+
+      if (!FACTORY_ADDRESS) {
+        throw new Error('NEXT_PUBLIC_FACTORY_ADDRESS is not defined');
+      }
       
       // Factory ABI to get all pools
       const factoryABI = [

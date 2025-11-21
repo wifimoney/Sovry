@@ -28,29 +28,6 @@ dataSources:
           handler: handlePairCreated
       file: ./src/pool.ts
 
-  # 2. ROYALTY MODULE (Mendeteksi Uang Masuk)
-  - kind: ethereum/contract
-    name: RoyaltyModule
-    network: story-aeneid
-    source:
-      address: "0xD2f60c40fEbccf6311f8B47c4f2Ec6b040400086" # Alamat Resmi Story
-      abi: RoyaltyModule
-      startBlock: 0 
-    mapping:
-      kind: ethereum/events
-      apiVersion: 0.0.7
-      language: wasm/assemblyscript
-      entities:
-        - RoyaltyPayment
-        - IPAsset
-      abis:
-        - name: RoyaltyModule
-          file: ./abis/RoyaltyModule.json
-      eventHandlers:
-        - event: RoyaltyPaid(address,address,address,address,uint256,uint256)
-          handler: handleRoyaltyPaid
-      file: ./src/pool.ts
-
 templates:
   # 3. POOL TEMPLATE (Mendeteksi Swap di dalam Pool)
   - kind: ethereum/contract

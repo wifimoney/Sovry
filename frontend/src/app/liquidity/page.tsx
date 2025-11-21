@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useDynamicContext, useIsLoggedIn } from "@dynamic-labs/sdk-react-core";
+import { useDynamicContext } from "@dynamic-labs/sdk-react-core";
 import { ethers } from "ethers";
 import { Navigation } from "@/components/navigation/Navigation";
 import { Button } from "@/components/ui/button";
@@ -65,10 +65,12 @@ import {
 import { liquidityService } from "@/services/liquidityService";
 
 // Sovry Router Address for UI display
-const SOVRY_ROUTER_ADDRESS = '0x1cfE0b6E0324F2368314648Cc68a1990aE636F4F';
+const SOVRY_ROUTER_ADDRESS =
+  process.env.NEXT_PUBLIC_ROUTER_ADDRESS ||
+  "0xD711896DCD894CB3dECAdF79e8522bf660b23960";
 
 // Grade Startup Goldsky API endpoint from env
-const GOLDSKY_API_URL = "https://api.goldsky.com/api/public/project_cmhxop6ixrx0301qpd4oi5bb4/subgraphs/sovry-aeneid/1.1.0/gn";
+const GOLDSKY_API_URL = "https://api.goldsky.com/api/public/project_cmhxop6ixrx0301qpd4oi5bb4/subgraphs/sovry-aeneid/1.1.1/gn";
 
 // Types for user pools
 interface UserPool {
@@ -109,7 +111,7 @@ const TOKEN_MAPPING: Record<string, { symbol: string; name: string }> = {
 
 export default function LiquidityPage() {
   const { primaryWallet } = useDynamicContext();
-  const isLoggedIn = useIsLoggedIn();
+  const isConnected = !!primaryWallet;
   
   const [ipAssets, setIpAssets] = useState<IPAsset[]>([]);
   const [loading, setLoading] = useState(false);
@@ -238,7 +240,7 @@ export default function LiquidityPage() {
   // Fetch IP assets and user pools when wallet is connected
   useEffect(() => {
     const fetchAssets = async () => {
-      if (isLoggedIn && walletAddress) {
+      if (isConnected && walletAddress) {
         setLoading(true);
         setError(null);
         
@@ -269,7 +271,7 @@ export default function LiquidityPage() {
     };
 
     fetchAssets();
-  }, [isLoggedIn, walletAddress]);
+  }, [isConnected, walletAddress]);
 
   const handleUnlockTokens = async (ipAsset: IPAsset) => {
     if (!walletAddress || !primaryWallet) return;
@@ -581,7 +583,7 @@ Try checking your wallet directly or refresh the page!`);
 
   // Handle add liquidity to existing pool
   const handleAddLiquidityToPool = async () => {
-    if (!isLoggedIn || !primaryWallet || !selectedPoolForLiquidity) {
+    if (!primaryWallet || !selectedPoolForLiquidity) {
       setLiquidityError("Please connect your wallet and select a pool");
       return;
     }
@@ -653,7 +655,7 @@ Try checking your wallet directly or refresh the page!`);
 
   // Handle remove liquidity from existing pool
   const handleRemoveLiquidityFromPool = async () => {
-    if (!isLoggedIn || !primaryWallet || !selectedPoolForLiquidity) {
+    if (!primaryWallet || !selectedPoolForLiquidity) {
       setLiquidityError("Please connect your wallet and select a pool");
       return;
     }
@@ -747,7 +749,7 @@ Try checking your wallet directly or refresh the page!`);
     (selectedTokenBalance ? Number(selectedTokenBalance.balance) <= 0.000001 : true) : 
     false;
 
-  if (!isLoggedIn) {
+  if (!isConnected) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-background via-background to-background/95">
         <Navigation />

@@ -1,41 +1,37 @@
 require("@nomicfoundation/hardhat-toolbox");
+require("@tenderly/hardhat-tenderly");
+require("dotenv").config({ path: require("path").resolve(__dirname, ".env") });
 
-/** @type import('hardhat/config').HardhatUserConfig */
+const normalizePrivateKey = (key) => {
+  if (!key) return undefined;
+  return key.startsWith("0x") ? key : `0x${key}`;
+};
+
 module.exports = {
   solidity: {
     version: "0.8.26",
     settings: {
-      optimizer: {
-        enabled: true,
-        runs: 200,
-      },
-      viaIR: true, // 🛡️ SECURITY: Fix stack too deep
+      optimizer: { enabled: true, runs: 200 },
+      viaIR: true,
     },
+  },
+  paths: {
+    sources: "./",
+    artifacts: "./artifacts",
+    cache: "./cache",
   },
   networks: {
-    hardhat: {
-      chainId: 1337
-    },
+    hardhat: { chainId: 1337 },
     storyTestnet: {
-      url: "https://aeneid.storyrpc.io",
+      url: process.env.AENEID_RPC_URL,
+      accounts: normalizePrivateKey(process.env.PRIVATE_KEY)
+        ? [normalizePrivateKey(process.env.PRIVATE_KEY)]
+        : [],
       chainId: 1315,
-      accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
-      gasPrice: 1000000000, // 1 gwei
-    }
-  },
-  etherscan: {
-    apiKey: {
-      storyTestnet: "your-api-key-here"
     },
-    customChains: [
-      {
-        network: "storyTestnet",
-        chainId: 1315,
-        urls: {
-          apiURL: "https://storyscan.io/api",
-          browserURL: "https://storyscan.io"
-        }
-      }
-    ]
-  }
+  },
+  tenderly: {
+    username: process.env.TENDERLY_USERNAME,
+    project: process.env.TENDERLY_PROJECT,
+  },
 };

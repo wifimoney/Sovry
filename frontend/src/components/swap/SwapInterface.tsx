@@ -79,7 +79,7 @@ export default function SwapInterface() {
       });
 
       // Sovry Factory contract address
-      const FACTORY_ADDRESS = '0x5d885F211a9F9Ce5375A18cd5FD7d5721CB4278B';
+      const FACTORY_ADDRESS = '0xAc903015B6828A5290DF0e42504423EBB295c8a3';
       
       // Factory ABI to get all pools
       const factoryABI = [
