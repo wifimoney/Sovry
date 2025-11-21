@@ -105,64 +105,50 @@ export default function Home() {
   ];
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-gradient-to-b from-background via-background to-background/95">
       <Navigation />
       
       {/* Hero Section - Trade IP, Earn Yield */}
-      <section className="relative bg-linear-to-br from-blue-900 via-purple-900 to-pink-900 text-white">
-        <div className="absolute inset-0 bg-black/20"></div>
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-          <div className="text-center">
-            <h1 className="text-4xl md:text-5xl font-bold mb-4">
-              Trade IP, Earn Yield
-            </h1>
-            <p className="text-xl md:text-2xl mb-8 text-blue-100">
-              The first liquidity marketplace for Intellectual Property Assets on Story Protocol
-            </p>
-            
-            {/* Search Bar */}
-            <div className="max-w-2xl mx-auto mb-8">
-              <div className="relative">
-                <input
-                  type="text"
-                  placeholder="Search IP assets by name or address..."
-                  className="w-full px-6 py-4 pr-12 rounded-lg text-gray-900 placeholder-gray-500 bg-white/90 backdrop-blur-sm border border-white/20 focus:outline-none focus:ring-2 focus:ring-white/50"
-                />
-                <button className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-md transition-colors">
-                  Search
-                </button>
-              </div>
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+        <div className="text-center space-y-6 mb-20">
+          <h1 className="text-5xl md:text-6xl font-bold text-balance">
+            Trade IP Assets
+            <br />
+            <span className="bg-gradient-to-r from-primary via-primary/80 to-primary bg-clip-text text-transparent">
+              Earn Real Yield
+            </span>
+          </h1>
+          <p className="text-lg text-muted-foreground max-w-2xl mx-auto text-balance">
+            The premier decentralized exchange for IP Royalty Tokens. Access premium intellectual property investments
+            with transparent yield generation.
+          </p>
+          
+          {/* Stats */}
+          <div className="flex flex-wrap gap-4 justify-center mt-8">
+            <div className="glass-card px-6 py-4">
+              <span className="text-2xl font-bold text-primary">$2.5M</span>
+              <span className="block text-sm text-muted-foreground">Total Value Locked</span>
             </div>
-
-            {/* Stats */}
-            <div className="flex flex-wrap gap-4 justify-center">
-              <div className="bg-white/10 backdrop-blur-sm rounded-lg px-6 py-3">
-                <span className="text-2xl font-bold">$2.5M</span>
-                <span className="block text-sm">Total Value Locked</span>
-              </div>
-              <div className="bg-white/10 backdrop-blur-sm rounded-lg px-6 py-3">
-                <span className="text-2xl font-bold">$185K</span>
-                <span className="block text-sm">Total Royalties Paid</span>
-              </div>
-              <div className="bg-white/10 backdrop-blur-sm rounded-lg px-6 py-3">
-                <span className="text-2xl font-bold">{totalIPAssets.toLocaleString()}</span>
-                <span className="block text-sm">Total IP Listed</span>
-              </div>
+            <div className="glass-card px-6 py-4">
+              <span className="text-2xl font-bold text-primary">$185K</span>
+              <span className="block text-sm text-muted-foreground">Total Royalties Paid</span>
+            </div>
+            <div className="glass-card px-6 py-4">
+              <span className="text-2xl font-bold text-primary">{totalIPAssets.toLocaleString()}</span>
+              <span className="block text-sm text-muted-foreground">Total IP Listed</span>
             </div>
           </div>
         </div>
       </section>
 
       {/* Trending Assets - Carousel 3 IP dengan APY tertinggi */}
-      <section className="py-16 bg-gray-50">
+      <section className="py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold text-gray-900 mb-4">
-              🔥 Trending IP Assets
-            </h2>
-            <p className="text-lg text-gray-600">
-              Highest APY yields this week
-            </p>
+          <div className="flex items-center gap-2 mb-8">
+            <svg className="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+            </svg>
+            <h2 className="text-2xl font-bold">Trending Assets</h2>
           </div>
           
           {/* Carousel - Sort by APY */}
@@ -171,40 +157,36 @@ export default function Home() {
               .sort((a, b) => b.apy - a.apy)
               .slice(0, 3)
               .map((asset) => (
-              <div key={asset.id} className="bg-white border border-gray-200 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden group cursor-pointer relative">
-                {/* APY Badge */}
-                <div className="absolute top-3 right-3 bg-green-500/90 backdrop-blur-sm px-3 py-1 rounded-full z-10">
-                  <span className="text-white text-xs font-bold">
-                    {asset.apy}% APY
-                  </span>
-                </div>
-                
+              <div key={asset.id} className="glass-card overflow-hidden hover:border-primary/30 hover:shadow-xl hover:shadow-primary/10 transition-all duration-300 group cursor-pointer flex flex-col">
                 {/* Image */}
-                <div className="relative h-48 overflow-hidden">
+                <div className="relative overflow-hidden h-40 bg-muted/30 flex items-center justify-center">
                   <img
                     src={asset.thumbnail || asset.image}
                     alt={asset.name}
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                   />
+                  {/* APY Badge */}
+                  <div className="absolute top-3 right-3 apy-badge">
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                    </svg>
+                    {asset.apy}%
+                  </div>
                 </div>
                 
                 {/* Info */}
-                <div className="p-4">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                    {asset.name}
-                  </h3>
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <p className="text-sm text-gray-500">{asset.category}</p>
-                      <p className="text-lg font-bold text-gray-900">${asset.price}</p>
-                    </div>
-                    <button 
-                      onClick={() => window.location.href = `/pool/${asset.address}`}
-                      className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium text-sm transition-colors"
-                    >
-                      Trade
-                    </button>
+                <div className="p-4 space-y-3 flex-1 flex flex-col justify-between">
+                  <h3 className="text-lg font-semibold">{asset.name}</h3>
+                  <div className="space-y-2">
+                    <p className="text-xs text-muted-foreground">Current Price</p>
+                    <p className="text-2xl font-bold text-primary">${asset.price}</p>
                   </div>
+                  <button 
+                    onClick={() => window.location.href = `/pool/${asset.address}`}
+                    className="accent-button text-sm py-2"
+                  >
+                    Trade
+                  </button>
                 </div>
               </div>
             ))}
@@ -213,75 +195,71 @@ export default function Home() {
       </section>
 
       {/* All Pools Table */}
-      <section className="py-16 bg-white">
+      <section className="py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold text-gray-900 mb-4">
-              📊 All IP Pools
-            </h2>
-            <p className="text-lg text-gray-600">
-              Complete list of tradable IP assets
-            </p>
+          <div className="mb-8">
+            <h2 className="text-2xl font-bold mb-2">All IP Pools</h2>
+            <p className="text-muted-foreground">Complete list of tradable IP assets</p>
           </div>
           
           {/* Table */}
-          <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+          <div className="glass-card overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-gray-50 border-b border-gray-200">
+                <thead className="border-b border-border/30">
                   <tr>
-                    <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-4 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                       Asset
                     </th>
-                    <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-4 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                       Price ($WIP)
                     </th>
-                    <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-4 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                       APY/Yield
                     </th>
-                    <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-4 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                       Volume 24h
                     </th>
-                    <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-4 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                       Action
                     </th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-200">
+                <tbody className="divide-y divide-border/20">
                   {pools.map((pool, index) => (
-                    <tr key={pool.address} className="hover:bg-gray-50 transition-colors">
+                    <tr key={pool.address} className="hover:bg-muted/10 transition-colors">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
-                          <div className="w-10 h-10 bg-linear-to-br from-blue-400 to-purple-600 rounded-lg flex items-center justify-center text-white font-bold">
+                          <div className="w-10 h-10 bg-gradient-to-br from-primary/30 to-primary/10 rounded-lg flex items-center justify-center text-primary font-bold border border-primary/30">
                             {pool.token0Symbol?.charAt(0) || 'I'}
                           </div>
                           <div className="ml-4">
-                            <div className="text-sm font-medium text-gray-900">
+                            <div className="text-sm font-medium text-foreground">
                               {pool.name}
                             </div>
-                            <div className="text-sm text-gray-500">
+                            <div className="text-sm text-muted-foreground">
                               {pool.token0Symbol}/{pool.token1Symbol}
                             </div>
                           </div>
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">
+                        <div className="text-sm text-foreground font-medium">
                           ${(Math.random() * 2 + 0.5).toFixed(2)}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                        <span className="apy-badge">
                           {pool.apr}%
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
                         ${(pool.volume24hUSD / 1000).toFixed(1)}K
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                         <button 
                           onClick={() => window.location.href = `/pool/${pool.address}`}
-                          className="text-blue-600 hover:text-blue-900 transition-colors"
+                          className="text-primary hover:text-primary/80 transition-colors font-semibold"
                         >
                           Trade →
                         </button>
@@ -296,7 +274,7 @@ export default function Home() {
       </section>
 
       {/* Swap Interface */}
-      <section className="py-16 bg-gray-50">
+      <section className="py-16">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <SwapInterface />
         </div>

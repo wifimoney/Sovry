@@ -1,159 +1,129 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useState, useEffect } from "react";
+import { useDynamicContext } from "@dynamic-labs/sdk-react-core";
 import { Button } from "@/components/ui/button";
-import { WalletConnector } from "@/components/WalletConnector";
-import { 
-  TrendingUp, 
-  Plus, 
-  DollarSign, 
-  BarChart3, 
-  Menu, 
-  X,
-  Home,
-  Palette,
-  PieChart,
-  Droplets,
-  Database
-} from "lucide-react";
+import { Menu, Wallet, X } from "lucide-react";
 
-const navigationItems = [
-  {
-    name: "Home",
-    href: "/",
-    icon: Home,
-    description: "Overview and quick swap"
-  },
-  {
-    name: "Swap",
-    href: "/swap",
-    icon: TrendingUp,
-    description: "Trade WIP ↔ rIP tokens"
-  },
-  {
-    name: "Portfolio",
-    href: "/portfolio",
-    icon: PieChart,
-    description: "Track your IP investments"
-  },
-  {
-    name: "Revenue",
-    href: "/revenue",
-    icon: DollarSign,
-    description: "Claim your IP revenue"
-  },
-  {
-    name: "Liquidity",
-    href: "/liquidity",
-    icon: Droplets,
-    description: "Create pools from your IP assets"
-  },
-  {
-    name: "Pools",
-    href: "/pools",
-    icon: Database,
-    description: "View all liquidity pools"
-  },
+const NAV_ITEMS = [
+  { label: "Home", href: "/" },
+  { label: "Swap", href: "/swap" },
+  { label: "Liquidity", href: "/liquidity" },
+  { label: "Pools", href: "/pools" },
+  { label: "Portfolio", href: "/portfolio" },
+  { label: "Revenue", href: "/revenue" }
 ];
 
 export function Navigation() {
   const pathname = usePathname();
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const { primaryWallet, setShowAuthFlow } = useDynamicContext();
+  const [scrolled, setScrolled] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => setScrolled(window.scrollY > 8);
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  const toggleMobile = () => setMobileOpen((open) => !open);
+  const closeMobile = () => setMobileOpen(false);
+
+  const renderLink = (item: (typeof NAV_ITEMS)[number], isMobile = false) => {
+    const isActive = pathname === item.href;
+    const baseClasses = isMobile
+      ? "block px-4 py-3 rounded-xl text-base font-medium"
+      : "px-3 py-2 rounded-lg text-sm font-medium";
+
+    const activeClasses = isActive
+      ? "text-primary bg-primary/10 border border-primary/30"
+      : "text-muted-foreground hover:text-foreground hover:bg-muted/20";
+
+    return (
+      <Link
+        key={item.href}
+        href={item.href}
+        onClick={isMobile ? closeMobile : undefined}
+        className={`${baseClasses} ${activeClasses} transition-all duration-200`}
+      >
+        {item.label}
+      </Link>
+    );
+  };
 
   return (
-    <nav className="bg-black/40 backdrop-blur-md border-b border-white/10 sticky top-0 z-50">
+    <header
+      className={`sticky top-0 z-50 transition-all duration-300 ${
+        scrolled
+          ? "bg-card/95 border-b border-border/60 shadow-lg shadow-black/30"
+          : "bg-card/80 border-b border-border/20"
+      } backdrop-blur-xl`}
+    >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
-          <div className="flex items-center">
-            <Link href="/" className="flex items-center space-x-2">
-              <div className="w-8 h-8 bg-linear-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold text-sm">S</span>
-              </div>
-              <span className="text-white font-bold text-xl">Sovry DEX</span>
-            </Link>
-          </div>
-
-          {/* Desktop Navigation */}
-          <div className="hidden md:block">
-            <div className="ml-10 flex items-baseline space-x-4">
-              {navigationItems.map((item) => {
-                const isActive = pathname === item.href;
-                return (
-                  <Link
-                    key={item.name}
-                    href={item.href}
-                    className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                      isActive
-                        ? "bg-white/10 text-white"
-                        : "text-gray-300 hover:bg-white/5 hover:text-white"
-                    }`}
-                  >
-                    {item.name}
-                  </Link>
-                );
-              })}
+          <Link href="/" className="flex items-center space-x-3">
+            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-primary via-amber-400 to-primary/80 flex items-center justify-center shadow-inner">
+              <span className="text-background font-black text-lg">S</span>
             </div>
-          </div>
+            <div className="flex flex-col">
+              <span className="text-foreground font-semibold leading-tight">Sovry DEX</span>
+              <span className="text-xs text-muted-foreground tracking-wide">Story Protocol Markets</span>
+            </div>
+          </Link>
 
-          {/* Wallet Connector */}
-          <div className="hidden md:block">
-            <WalletConnector />
-          </div>
+          {/* Desktop Links */}
+          <nav className="hidden md:flex items-center space-x-2">
+            {NAV_ITEMS.map((item) => renderLink(item))}
+          </nav>
 
-          {/* Mobile menu button */}
-          <div className="md:hidden">
+          {/* Wallet / CTA */}
+          <div className="flex items-center gap-3">
             <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className="text-white hover:bg-white/10"
+              variant="outline"
+              className="hidden md:inline-flex border-primary/30 bg-primary/10 hover:bg-primary/20 text-primary hover:text-foreground"
+              onClick={() => setShowAuthFlow(true)}
             >
-              {isMobileMenuOpen ? (
-                <X className="h-6 w-6" />
-              ) : (
-                <Menu className="h-6 w-6" />
-              )}
+              <Wallet className="h-4 w-4 mr-2" />
+              {primaryWallet
+                ? `${primaryWallet.address.slice(0, 6)}...${primaryWallet.address.slice(-4)}`
+                : "Connect Wallet"}
             </Button>
+
+            <button
+              className="md:hidden inline-flex items-center justify-center rounded-xl border border-border/60 bg-card/80 p-2 text-muted-foreground hover:text-foreground hover:border-border"
+              onClick={toggleMobile}
+              aria-label="Toggle navigation"
+            >
+              {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            </button>
           </div>
         </div>
       </div>
 
-      {/* Mobile Navigation */}
-      {isMobileMenuOpen && (
-        <div className="md:hidden">
-          <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3 bg-black/60 backdrop-blur-md">
-            {navigationItems.map((item) => {
-              const isActive = pathname === item.href;
-              return (
-                <Link
-                  key={item.name}
-                  href={item.href}
-                  className={`flex items-center space-x-3 px-3 py-2 rounded-md text-base font-medium transition-colors ${
-                    isActive
-                      ? "bg-white/10 text-white"
-                      : "text-gray-300 hover:bg-white/5 hover:text-white"
-                  }`}
-                  onClick={() => setIsMobileMenuOpen(false)}
-                >
-                  <item.icon className="h-5 w-5" />
-                  <div>
-                    <div>{item.name}</div>
-                    <div className="text-xs text-gray-400">{item.description}</div>
-                  </div>
-                </Link>
-              );
-            })}
-            
-            {/* Mobile Wallet Connector */}
-            <div className="px-3 py-2 border-t border-white/10 mt-2">
-              <WalletConnector />
-            </div>
+      {/* Mobile Drawer */}
+      {mobileOpen && (
+        <div className="md:hidden border-t border-border/40 bg-card/95 backdrop-blur-xl">
+          <div className="px-4 py-4 space-y-3">
+            {NAV_ITEMS.map((item) => renderLink(item, true))}
+            <Button
+              variant="outline"
+              className="w-full border-primary/30 bg-primary/10 hover:bg-primary/20 text-primary hover:text-foreground"
+              onClick={() => {
+                setShowAuthFlow(true);
+                closeMobile();
+              }}
+            >
+              <Wallet className="h-4 w-4 mr-2" />
+              {primaryWallet
+                ? `${primaryWallet.address.slice(0, 6)}...${primaryWallet.address.slice(-4)}`
+                : "Connect Wallet"}
+            </Button>
           </div>
         </div>
       )}
-    </nav>
+    </header>
   );
 }

@@ -141,12 +141,12 @@ export default function PortfolioPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen">
+      <div className="min-h-screen bg-gradient-to-b from-background via-background to-background/95">
         <Navigation />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="text-center py-16">
-            <Coins className="h-12 w-12 text-blue-500 mx-auto mb-4 animate-pulse" />
-            <p className="text-gray-500">Loading your yield dashboard...</p>
+            <Coins className="h-12 w-12 text-primary mx-auto mb-4 animate-pulse" />
+            <p className="text-muted-foreground">Loading your yield dashboard...</p>
           </div>
         </div>
       </div>
@@ -154,55 +154,57 @@ export default function PortfolioPage() {
   }
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-gradient-to-b from-background via-background to-background/95">
       <Navigation />
       
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            💰 Yield Dashboard
+          <h1 className="text-3xl font-bold mb-2">
+            <span className="bg-gradient-to-r from-primary via-primary/80 to-primary bg-clip-text text-transparent">
+              💰 Yield Dashboard
+            </span>
           </h1>
-          <p className="text-lg text-gray-600">
+          <p className="text-lg text-muted-foreground">
             Track your IP asset earnings and claim rewards
           </p>
         </div>
 
         {/* Net Worth Card */}
-        <Card className="mb-8 bg-linear-to-br from-blue-600 to-purple-600 text-white">
+        <Card className="mb-8 glass-card border-primary/30">
           <CardContent className="p-8">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-blue-100 text-lg mb-2">Net Worth</p>
-                <p className="text-4xl md:text-5xl font-bold">
+                <p className="text-muted-foreground text-lg mb-2">Net Worth</p>
+                <p className="text-4xl md:text-5xl font-bold text-primary">
                   {formatUSD(calculateNetWorth())}
                 </p>
-                <p className="text-blue-100 mt-2">
+                <p className="text-muted-foreground mt-2">
                   Total value of all your IP assets
                 </p>
               </div>
               <div className="text-right">
-                <DollarSign className="h-16 w-16 text-blue-200" />
+                <DollarSign className="h-16 w-16 text-primary/50" />
               </div>
             </div>
           </CardContent>
         </Card>
 
         {/* Claim All Rewards Section */}
-        <Card className="mb-8 border-green-200 bg-green-50">
+        <Card className="mb-8 glass-card border-emerald-500/30">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
                 <div className="flex items-center gap-2 mb-2">
-                  <Gift className="h-6 w-6 text-green-600" />
-                  <h3 className="text-lg font-semibold text-gray-900">
+                  <Gift className="h-6 w-6 text-emerald-400" />
+                  <h3 className="text-lg font-semibold text-foreground">
                     Available to Claim
                   </h3>
                 </div>
-                <p className="text-2xl font-bold text-green-600">
+                <p className="text-2xl font-bold text-emerald-400">
                   {formatUSD(calculateTotalClaimable())}
                 </p>
-                <p className="text-sm text-gray-600">
+                <p className="text-sm text-muted-foreground">
                   From {assets.filter(a => a.claimableRevenue > 0).length} assets
                 </p>
               </div>
@@ -210,7 +212,7 @@ export default function PortfolioPage() {
               <Button
                 onClick={handleClaimAll}
                 disabled={claiming || calculateTotalClaimable() === 0}
-                className="bg-green-600 hover:bg-green-700 text-white px-8 py-4 text-lg font-bold"
+                className="bg-emerald-600 hover:bg-emerald-700 text-black px-8 py-4 text-lg font-bold"
                 size="lg"
               >
                 {claiming ? (
@@ -228,9 +230,9 @@ export default function PortfolioPage() {
             </div>
             
             {lastClaimTime && (
-              <Alert className="mt-4 border-green-200 bg-green-100">
-                <CheckCircle className="h-4 w-4 text-green-600" />
-                <AlertDescription className="text-green-800">
+              <Alert className="mt-4 border-emerald-500/30 bg-emerald-500/10">
+                <CheckCircle className="h-4 w-4 text-emerald-400" />
+                <AlertDescription className="text-emerald-300">
                   Successfully claimed rewards at {lastClaimTime.toLocaleTimeString()}
                 </AlertDescription>
               </Alert>
@@ -239,10 +241,10 @@ export default function PortfolioPage() {
         </Card>
 
         {/* My Assets Table */}
-        <Card>
+        <Card className="glass-card">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <TrendingUp className="h-5 w-5" />
+              <TrendingUp className="h-5 w-5 text-primary" />
               My Assets
             </CardTitle>
           </CardHeader>
@@ -250,20 +252,20 @@ export default function PortfolioPage() {
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
-                  <tr className="border-b">
-                    <th className="text-left py-3 px-4 font-medium text-gray-700">Asset</th>
-                    <th className="text-right py-3 px-4 font-medium text-gray-700">Balance</th>
-                    <th className="text-right py-3 px-4 font-medium text-gray-700">Value</th>
-                    <th className="text-right py-3 px-4 font-medium text-gray-700">Claimable Revenue</th>
-                    <th className="text-right py-3 px-4 font-medium text-gray-700">APY</th>
+                  <tr className="border-b border-border/30">
+                    <th className="text-left py-3 px-4 font-medium text-muted-foreground">Asset</th>
+                    <th className="text-right py-3 px-4 font-medium text-muted-foreground">Balance</th>
+                    <th className="text-right py-3 px-4 font-medium text-muted-foreground">Value</th>
+                    <th className="text-right py-3 px-4 font-medium text-muted-foreground">Claimable Revenue</th>
+                    <th className="text-right py-3 px-4 font-medium text-muted-foreground">APY</th>
                   </tr>
                 </thead>
                 <tbody>
                   {assets.map((asset) => (
-                    <tr key={asset.id} className="border-b hover:bg-gray-50">
+                    <tr key={asset.id} className="border-b border-border/20 hover:bg-muted/10">
                       <td className="py-4 px-4">
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-gray-200 rounded-lg overflow-hidden">
+                          <div className="w-10 h-10 bg-muted/20 rounded-lg overflow-hidden border border-border/30">
                             <img
                               src={asset.image}
                               alt={asset.name}
@@ -271,32 +273,32 @@ export default function PortfolioPage() {
                             />
                           </div>
                           <div>
-                            <p className="font-medium text-gray-900">{asset.symbol}</p>
-                            <p className="text-sm text-gray-500">{asset.name}</p>
+                            <p className="font-medium text-foreground">{asset.symbol}</p>
+                            <p className="text-sm text-muted-foreground">{asset.name}</p>
                           </div>
                         </div>
                       </td>
                       <td className="text-right py-4 px-4">
-                        <span className="font-medium">
+                        <span className="font-medium text-foreground">
                           {formatBalance(asset.balance)}
                         </span>
                       </td>
                       <td className="text-right py-4 px-4">
-                        <span className="font-medium">
+                        <span className="font-medium text-foreground">
                           {formatUSD(asset.valueUSD)}
                         </span>
                       </td>
                       <td className="text-right py-4 px-4">
                         {asset.claimableRevenue > 0 ? (
-                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                          <span className="apy-badge">
                             {formatUSD(asset.claimableRevenue)}
                           </span>
                         ) : (
-                          <span className="text-gray-400">-</span>
+                          <span className="text-muted-foreground">-</span>
                         )}
                       </td>
                       <td className="text-right py-4 px-4">
-                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-primary/20 text-primary border border-primary/30">
                           {asset.apy}
                         </span>
                       </td>
@@ -307,12 +309,12 @@ export default function PortfolioPage() {
             </div>
             
             {/* Summary Row */}
-            <div className="mt-4 pt-4 border-t">
+            <div className="mt-4 pt-4 border-t border-border/30">
               <div className="flex justify-between items-center">
-                <span className="font-semibold text-gray-900">Total</span>
+                <span className="font-semibold text-foreground">Total</span>
                 <div className="flex gap-6">
-                  <span className="font-semibold">{formatUSD(calculateNetWorth())}</span>
-                  <span className="font-semibold text-green-600">
+                  <span className="font-semibold text-foreground">{formatUSD(calculateNetWorth())}</span>
+                  <span className="font-semibold text-emerald-400">
                     {formatUSD(calculateTotalClaimable())}
                   </span>
                 </div>
@@ -323,25 +325,25 @@ export default function PortfolioPage() {
 
         {/* Quick Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
-          <Card>
+          <Card className="glass-card">
             <CardContent className="p-6">
               <div className="flex items-center">
-                <Coins className="h-8 w-8 text-blue-600" />
+                <Coins className="h-8 w-8 text-primary" />
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Total Assets</p>
-                  <p className="text-2xl font-bold text-gray-900">{assets.length}</p>
+                  <p className="text-sm font-medium text-muted-foreground">Total Assets</p>
+                  <p className="text-2xl font-bold text-foreground">{assets.length}</p>
                 </div>
               </div>
             </CardContent>
           </Card>
           
-          <Card>
+          <Card className="glass-card">
             <CardContent className="p-6">
               <div className="flex items-center">
-                <TrendingUp className="h-8 w-8 text-green-600" />
+                <TrendingUp className="h-8 w-8 text-emerald-400" />
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Earning Assets</p>
-                  <p className="text-2xl font-bold text-gray-900">
+                  <p className="text-sm font-medium text-muted-foreground">Earning Assets</p>
+                  <p className="text-2xl font-bold text-foreground">
                     {assets.filter(a => parseFloat(a.apy) > 0).length}
                   </p>
                 </div>
@@ -349,13 +351,13 @@ export default function PortfolioPage() {
             </CardContent>
           </Card>
           
-          <Card>
+          <Card className="glass-card">
             <CardContent className="p-6">
               <div className="flex items-center">
-                <Gift className="h-8 w-8 text-purple-600" />
+                <Gift className="h-8 w-8 text-primary" />
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Avg APY</p>
-                  <p className="text-2xl font-bold text-gray-900">
+                  <p className="text-sm font-medium text-muted-foreground">Avg APY</p>
+                  <p className="text-2xl font-bold text-foreground">
                     {assets.length > 0 
                       ? (assets.reduce((sum, a) => sum + parseFloat(a.apy), 0) / assets.length).toFixed(1)
                       : "0"

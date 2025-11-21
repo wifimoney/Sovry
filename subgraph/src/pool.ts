@@ -42,6 +42,8 @@ export function handlePairCreated(event: PairCreated): void {
     factory.poolCount = ZERO_BI
     factory.totalVolumeUSD = ZERO_BD
     factory.totalLiquidityUSD = ZERO_BD
+    factory.totalFeesUSD = ZERO_BD
+    factory.untrackedVolumeUSD = ZERO_BD
     factory.save()
   }
   factory.poolCount = factory.poolCount.plus(BigInt.fromI32(1))
@@ -57,6 +59,9 @@ export function handlePairCreated(event: PairCreated): void {
     token0.volume = ZERO_BD
     token0.volumeUSD = ZERO_BD
     token0.txCount = ZERO_BI
+    token0.derivedETH = ZERO_BD
+    token0.derivedUSD = ZERO_BD
+    token0.whitelistPools = []
     token0.save()
   }
 
@@ -70,6 +75,9 @@ export function handlePairCreated(event: PairCreated): void {
     token1.volume = ZERO_BD
     token1.volumeUSD = ZERO_BD
     token1.txCount = ZERO_BI
+    token1.derivedETH = ZERO_BD
+    token1.derivedUSD = ZERO_BD
+    token1.whitelistPools = []
     token1.save()
   }
 

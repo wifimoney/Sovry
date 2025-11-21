@@ -8,11 +8,13 @@ import { erc20Abi } from 'viem';
 
 // Environment variables
 const STORY_RPC_URL = process.env.NEXT_PUBLIC_STORY_RPC_URL || 'https://aeneid.storyrpc.io';
-const GOLDSKY_GRAPHQL_URL = 'https://api.goldsky.com/api/public/project_cmhxop6ixrx0301qpd4oi5bb4/subgraphs/sovry-aeneid/1.1.0/gn';
+const GOLDSKY_GRAPHQL_URL = 'https://api.goldsky.com/api/public/project_cmhxop6ixrx0301qpd4oi5bb4/subgraphs/sovry-aeneid/1.1.1/gn';
 const STORY_API_KEY = process.env.NEXT_PUBLIC_STORY_API_KEY || 'KOTbaGUSWQ6cUJWhiJYiOjPgB0kTRu1eCFFvQL0IWls';
 
 // Sovry Router Contract Address (from your deployment)
-export const SOVRY_ROUTER_ADDRESS = "0x1cfE0b6E0324F2368314648Cc68a1990aE636F4F";
+export const SOVRY_ROUTER_ADDRESS =
+  process.env.NEXT_PUBLIC_ROUTER_ADDRESS ||
+  "0xD711896DCD894CB3dECAdF79e8522bf660b23960";
 
 // Sovry Factory Contract Address
 const SOVRY_FACTORY_ADDRESS = '0xAc903015B6828A5290DF0e42504423EBB295c8a3';
@@ -1216,31 +1218,34 @@ export async function createPoolDynamic(
     console.log('Amount ETH Min:', formatEther(minETHAmount), 'WIP');
     console.log('To:', userAddress);
     
-    // 🛡️ SECURITY: Grant liquidity provider role before adding liquidity
+    // 🛡️ SECURITY: Ensure wallet has liquidity provider role before adding liquidity
     try {
-      console.log('🔐 Granting Liquidity Provider Role...');
-      const grantRoleTx = await walletClient.sendTransaction({
-        to: SOVRY_ROUTER_ADDRESS as Address,
-        data: encodeFunctionData({
-          abi: [{
-            inputs: [
-              { internalType: 'bytes32', name: 'role', type: 'bytes32' },
-              { internalType: 'address', name: 'account', type: 'address' }
-            ],
-            name: 'grantRole',
-            outputs: [],
-            stateMutability: 'nonpayable',
-            type: 'function',
-          }],
-          functionName: 'grantRole',
-          args: [keccak256(toHex('LIQUIDITY_PROVIDER_ROLE')), userAddress as Address],
-        }),
+      console.log('🔍 Checking Liquidity Provider Role...');
+      const roleClient = getPublicClient();
+      const hasRole = await roleClient.readContract({
+        address: SOVRY_ROUTER_ADDRESS as Address,
+        abi: [{
+          inputs: [
+            { internalType: 'bytes32', name: 'role', type: 'bytes32' },
+            { internalType: 'address', name: 'account', type: 'address' }
+          ],
+          name: 'hasRole',
+          outputs: [{ internalType: 'bool', name: '', type: 'bool' }],
+          stateMutability: 'view',
+          type: 'function',
+        }],
+        functionName: 'hasRole',
+        args: [keccak256(toHex('LIQUIDITY_PROVIDER_ROLE')), userAddress as Address],
       });
-      
-      await getPublicClient().waitForTransactionReceipt({ hash: grantRoleTx as Address });
-      console.log('✅ Liquidity Provider Role Granted!');
+
+      if (!hasRole) {
+        throw new Error('Your wallet is not authorized as a liquidity provider. Please contact the admin to grant LIQUIDITY_PROVIDER_ROLE.');
+      }
+
+      console.log('✅ Wallet has Liquidity Provider Role');
     } catch (roleError) {
-      console.log('⚠️ Role grant failed (may already have role):', roleError);
+      console.error('❌ Liquidity provider role check failed:', roleError);
+      throw roleError instanceof Error ? roleError : new Error('Failed to verify liquidity provider role');
     }
     
     // 🔧 FIXED: Both router and pool contracts now handle skewed pools properly

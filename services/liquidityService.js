@@ -42,6 +42,10 @@ class LiquidityService {
     // Contract addresses (will be updated based on deployment)
     this.routerAddress = null; // Will be set from environment or deployment
     this.factoryAddress = null;
+
+    // Goldsky subgraph configuration (shared with pricing service)
+    this.goldskyEndpoint = process.env.GOLDSKY_ENDPOINT;
+    this.goldskyApiKey = process.env.GOLDSKY_API_KEY;
   }
   
   /**
@@ -491,7 +495,7 @@ class LiquidityService {
       
       const query = `
         query GetPools {
-          pools(first: 10, orderBy: volumeUSD, orderDirection: desc) {
+          pools(first: 100, orderBy: volumeUSD, orderDirection: desc) {
             id
             token0 {
               id
@@ -513,11 +517,14 @@ class LiquidityService {
         }
       `;
       
-      const response = await axios.post('https://api.goldsky.com/api/public/project_cmhxop6ixrx0301qpd4oi5bb4/subgraphs/sovry-aeneid/1.0.3/gn', {
+      const endpoint = this.goldskyEndpoint || 'https://api.goldsky.com/api/public/project_cmhxop6ixrx0301qpd4oi5bb4/subgraphs/sovry-aeneid/1.1.1/gn';
+
+      const response = await axios.post(endpoint, {
         query
       }, {
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          ...(this.goldskyApiKey ? { 'Authorization': `Bearer ${this.goldskyApiKey}` } : {})
         }
       });
       
@@ -535,6 +542,23 @@ class LiquidityService {
           const userLPBalance = await pairContract.balanceOf(userAddress);
           
           if (parseFloat(userLPBalance.toString()) > 0) {
+            // Normalize reserves and total supply using token decimals
+            const token0Decimals = pool.token0?.decimals != null ? Number(pool.token0.decimals) : 18;
+            const token1Decimals = pool.token1?.decimals != null ? Number(pool.token1.decimals) : 18;
+
+            const reserve0Normalized = pool.reserve0
+              ? (parseFloat(pool.reserve0) / Math.pow(10, token0Decimals)).toString()
+              : pool.reserve0;
+
+            const reserve1Normalized = pool.reserve1
+              ? (parseFloat(pool.reserve1) / Math.pow(10, token1Decimals)).toString()
+              : pool.reserve1;
+
+            // LP tokens use 18 decimals by convention
+            const totalSupplyNormalized = pool.totalSupply
+              ? (parseFloat(pool.totalSupply) / Math.pow(10, 18)).toString()
+              : pool.totalSupply;
+
             // Calculate pool ownership percentage
             const poolOwnership = parseFloat(userLPBalance.toString()) > 0 && parseFloat(pool.totalSupply) > 0 
               ? (parseFloat(userLPBalance.toString()) / parseFloat(pool.totalSupply)).toString()
@@ -557,9 +581,9 @@ class LiquidityService {
               liquidity: userLPBalance.toString(),
               poolOwnership,
               valueUSD,
-              reserve0: pool.reserve0,
-              reserve1: pool.reserve1,
-              totalSupply: pool.totalSupply,
+              reserve0: reserve0Normalized,
+              reserve1: reserve1Normalized,
+              totalSupply: totalSupplyNormalized,
               volumeUSD: pool.volumeUSD
             });
           }

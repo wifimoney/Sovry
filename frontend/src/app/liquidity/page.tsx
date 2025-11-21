@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useDynamicContext, useIsLoggedIn } from "@dynamic-labs/sdk-react-core";
+import { useDynamicContext } from "@dynamic-labs/sdk-react-core";
 import { ethers } from "ethers";
 import { Navigation } from "@/components/navigation/Navigation";
 import { Button } from "@/components/ui/button";
@@ -65,10 +65,12 @@ import {
 import { liquidityService } from "@/services/liquidityService";
 
 // Sovry Router Address for UI display
-const SOVRY_ROUTER_ADDRESS = '0x1cfE0b6E0324F2368314648Cc68a1990aE636F4F';
+const SOVRY_ROUTER_ADDRESS =
+  process.env.NEXT_PUBLIC_ROUTER_ADDRESS ||
+  "0xD711896DCD894CB3dECAdF79e8522bf660b23960";
 
 // Grade Startup Goldsky API endpoint from env
-const GOLDSKY_API_URL = "https://api.goldsky.com/api/public/project_cmhxop6ixrx0301qpd4oi5bb4/subgraphs/sovry-aeneid/1.1.0/gn";
+const GOLDSKY_API_URL = "https://api.goldsky.com/api/public/project_cmhxop6ixrx0301qpd4oi5bb4/subgraphs/sovry-aeneid/1.1.1/gn";
 
 // Types for user pools
 interface UserPool {
@@ -109,7 +111,7 @@ const TOKEN_MAPPING: Record<string, { symbol: string; name: string }> = {
 
 export default function LiquidityPage() {
   const { primaryWallet } = useDynamicContext();
-  const isLoggedIn = useIsLoggedIn();
+  const isConnected = !!primaryWallet;
   
   const [ipAssets, setIpAssets] = useState<IPAsset[]>([]);
   const [loading, setLoading] = useState(false);
@@ -238,7 +240,7 @@ export default function LiquidityPage() {
   // Fetch IP assets and user pools when wallet is connected
   useEffect(() => {
     const fetchAssets = async () => {
-      if (isLoggedIn && walletAddress) {
+      if (isConnected && walletAddress) {
         setLoading(true);
         setError(null);
         
@@ -269,7 +271,7 @@ export default function LiquidityPage() {
     };
 
     fetchAssets();
-  }, [isLoggedIn, walletAddress]);
+  }, [isConnected, walletAddress]);
 
   const handleUnlockTokens = async (ipAsset: IPAsset) => {
     if (!walletAddress || !primaryWallet) return;
@@ -581,7 +583,7 @@ Try checking your wallet directly or refresh the page!`);
 
   // Handle add liquidity to existing pool
   const handleAddLiquidityToPool = async () => {
-    if (!isLoggedIn || !primaryWallet || !selectedPoolForLiquidity) {
+    if (!primaryWallet || !selectedPoolForLiquidity) {
       setLiquidityError("Please connect your wallet and select a pool");
       return;
     }
@@ -653,7 +655,7 @@ Try checking your wallet directly or refresh the page!`);
 
   // Handle remove liquidity from existing pool
   const handleRemoveLiquidityFromPool = async () => {
-    if (!isLoggedIn || !primaryWallet || !selectedPoolForLiquidity) {
+    if (!primaryWallet || !selectedPoolForLiquidity) {
       setLiquidityError("Please connect your wallet and select a pool");
       return;
     }
@@ -747,13 +749,13 @@ Try checking your wallet directly or refresh the page!`);
     (selectedTokenBalance ? Number(selectedTokenBalance.balance) <= 0.000001 : true) : 
     false;
 
-  if (!isLoggedIn) {
+  if (!isConnected) {
     return (
-      <div className="min-h-screen bg-linear-to-br from-gray-900 via-purple-900 to-gray-900">
+      <div className="min-h-screen bg-gradient-to-b from-background via-background to-background/95">
         <Navigation />
         <main className="container mx-auto px-4 py-8">
           <div className="max-w-md mx-auto">
-            <Card>
+            <Card className="glass-card">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Wallet className="h-5 w-5" />
@@ -837,7 +839,7 @@ Try checking your wallet directly or refresh the page!`);
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900/20 to-slate-900">
+    <div className="min-h-screen bg-gradient-to-b from-background via-background to-background/95">
       <style jsx>{`
         .slider::-webkit-slider-thumb {
           appearance: none;
@@ -859,41 +861,47 @@ Try checking your wallet directly or refresh the page!`);
           box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
         }
         .glass-effect {
-          background: rgba(255, 255, 255, 0.05);
+          background: rgba(26, 26, 26, 0.95);
           backdrop-filter: blur(10px);
           border: 1px solid rgba(255, 255, 255, 0.1);
+          border-radius: 0.75rem;
         }
         .glow-effect {
-          box-shadow: 0 0 20px rgba(102, 126, 234, 0.3);
+          box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+          transition: all 0.3s ease;
+        }
+        .glow-effect:hover {
+          box-shadow: 0 4px 30px rgba(245, 158, 11, 0.2);
+          border-color: rgba(245, 158, 11, 0.2);
         }
       `}</style>
       <Navigation />
       <main className="container mx-auto px-4 py-12">
         {/* Hero Section */}
         <div className="text-center mb-12">
-          <div className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-purple-500/20 to-blue-500/20 rounded-full mb-6 border border-purple-500/30">
+          <div className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-primary/10 to-primary/5 rounded-full mb-6 border border-primary/30 hover:border-primary/50 transition-colors">
             <Sparkles className="w-4 h-4 text-purple-400 mr-2" />
-            <span className="text-sm font-medium text-purple-300">Royalty Token Liquidity Protocol</span>
+            <span className="text-sm font-medium text-primary">Royalty Token Liquidity Protocol</span>
           </div>
           
-          <h1 className="text-6xl font-bold bg-gradient-to-r from-white via-purple-200 to-white bg-clip-text text-transparent mb-6 leading-tight">
+          <h1 className="text-6xl font-bold bg-gradient-to-r from-primary via-amber-300 to-primary bg-clip-text text-transparent mb-6 leading-tight">
             Monetize Your IP Assets
           </h1>
           
-          <p className="text-xl text-slate-300 max-w-4xl mx-auto mb-8 leading-relaxed">
+          <p className="text-xl text-muted-foreground max-w-4xl mx-auto mb-8 leading-relaxed">
             Create liquidity pools for your royalty tokens and unlock the full potential of your intellectual property through decentralized finance
           </p>
           
           <div className="flex justify-center items-center space-x-12 mb-8">
             <div className="flex items-center space-x-3">
-              <div className="p-2 bg-purple-500/20 rounded-lg border border-purple-500/30">
-                <Shield className="w-5 h-5 text-purple-400" />
+              <div className="p-2 bg-primary/20 rounded-lg border border-primary/30 transition-colors hover:border-primary/50">
+                <Shield className="w-5 h-5 text-primary" />
               </div>
-              <span className="text-slate-300">Secure</span>
+              <span className="text-foreground">Secure</span>
             </div>
             <div className="flex items-center space-x-3">
-              <div className="p-2 bg-blue-500/20 rounded-lg border border-blue-500/30">
-                <Zap className="w-5 h-5 text-blue-400" />
+              <div className="p-2 bg-primary/20 rounded-lg border border-primary/30 transition-colors hover:border-primary/50">
+                <Zap className="w-5 h-5 text-primary" />
               </div>
               <span className="text-slate-300">Fast</span>
             </div>
@@ -1030,7 +1038,7 @@ Try checking your wallet directly or refresh the page!`);
           </div>
 
           {/* Pool Creation Form */}
-          <div className="glass-effect rounded-2xl p-6 glow-effect">
+          <div className="bg-card/95 border border-border/80 rounded-2xl p-6 shadow-lg hover:shadow-primary/10 transition-all duration-300">
             <div className="flex items-center gap-3 mb-6">
               <div className="p-2 bg-blue-500/20 rounded-lg border border-blue-500/30">
                 <Plus className="h-5 w-5 text-blue-400" />
@@ -1042,12 +1050,12 @@ Try checking your wallet directly or refresh the page!`);
                 <div className="p-6 glass-effect rounded-xl border border-slate-500/30">
                   <div className="flex items-center space-x-3">
                     <AlertCircle className="h-5 w-5 text-slate-400" />
-                    <p className="text-slate-300">Select an IP asset to create a liquidity pool</p>
+                    <p className="text-foreground">Select an IP asset to create a liquidity pool</p>
                   </div>
                 </div>
               ) : (
                 <div className="space-y-4">
-                  <div className="p-4 glass-effect rounded-xl border border-blue-500/30 bg-blue-500/10">
+                  <div className="p-4 bg-blue-500/10 border border-blue-500/30 rounded-xl backdrop-blur-sm">
                     <h3 className="font-medium text-blue-300 mb-2">Selected IP Asset</h3>
                     <p className="text-sm text-blue-200">{selectedIPAsset.name}</p>
                     <p className="text-xs text-blue-400 mt-1">
@@ -1055,7 +1063,7 @@ Try checking your wallet directly or refresh the page!`);
                     </p>
                   </div>
 
-                  <div className="p-4 glass-effect rounded-xl border border-green-500/30 bg-green-500/10">
+                  <div className="p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-xl backdrop-blur-sm">
                     <h3 className="font-medium text-green-300 mb-2">Story Protocol Pool Details</h3>
                     <div className="text-sm text-green-200 space-y-1">
                       <p>• Royalty Token: {selectedIPAsset.royaltyVaultAddress.slice(0, 10)}...</p>
@@ -1080,9 +1088,9 @@ Try checking your wallet directly or refresh the page!`);
                           placeholder="1000"
                           min="0"
                           step="0.01"
-                          className="bg-slate-800/50 border-slate-600 text-white placeholder:text-slate-500 focus:border-purple-500 focus:ring-purple-500/20"
+                          className="bg-background/80 border-border/80 text-foreground placeholder:text-muted-foreground/60 focus:border-primary focus:ring-primary/20"
                         />
-                        <p className="text-xs text-slate-500">Amount of royalty tokens</p>
+                        <p className="text-xs text-muted-foreground/80">Amount of royalty tokens</p>
                       </div>
                       
                       <div className="space-y-2">
@@ -1095,9 +1103,9 @@ Try checking your wallet directly or refresh the page!`);
                           placeholder="1000"
                           min="0"
                           step="0.01"
-                          className="bg-slate-800/50 border-slate-600 text-white placeholder:text-slate-500 focus:border-purple-500 focus:ring-purple-500/20"
+                          className="bg-background/80 border-border/80 text-foreground placeholder:text-muted-foreground/60 focus:border-primary focus:ring-primary/20"
                         />
-                        <p className="text-xs text-slate-500">Native IP (will be wrapped to WIP)</p>
+                        <p className="text-xs text-muted-foreground/80">Native IP (will be wrapped to WIP)</p>
                       </div>
                     </div>
                     

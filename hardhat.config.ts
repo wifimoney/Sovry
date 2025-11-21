@@ -30,16 +30,15 @@ const config: HardhatUserConfig = {
     },
   },
   etherscan: {
-    apiKey: {
-      "aeneid": STORYSCAN_API_KEY,
-    },
+    // For Storyscan, we treat it as an Etherscan-compatible custom chain
+    apiKey: STORYSCAN_API_KEY,
     customChains: [
       {
         network: "aeneid",
         chainId: 1315,
         urls: {
-          apiURL: "https://storyscan.xyz/api",
-          browserURL: "https://storyscan.xyz",
+          apiURL: "https://aeneid.storyscan.io/api",
+          browserURL: "https://aeneid.storyscan.io",
         },
       },
     ],
