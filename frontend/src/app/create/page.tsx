@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useDynamicContext } from "@dynamic-labs/sdk-react-core";
 import { useRouter } from "next/navigation";
 import { Navigation } from "@/components/navigation/Navigation";
@@ -31,13 +31,12 @@ import {
 } from "@/services/storyProtocolService";
 import { launchpadService } from "@/services/launchpadService";
 import {
-  registerIPAsset,
   claimRevenue,
   mintLicenseToken,
   transferRoyaltyTokensFromIP,
-  createSampleIPMetadata,
-  createSampleNFTMetadata,
 } from "@/services/storyProtocolRegistration";
+import { pinFileToIPFS, pinJSONToIPFS } from "@/services/pinataService";
+import { supabase } from "@/lib/supabaseClient";
 
 export default function CreatePage() {
   const { primaryWallet } = useDynamicContext();
@@ -55,15 +54,17 @@ export default function CreatePage() {
   const [tokenBalances, setTokenBalances] = useState<Record<string, TokenBalance>>({});
   const [unlockingTokens, setUnlockingTokens] = useState<string | null>(null);
   const [claimingRevenue, setClaimingRevenue] = useState<string | null>(null);
-  const [registeringIP, setRegisteringIP] = useState(false);
-  const [showRegistrationForm, setShowRegistrationForm] = useState(false);
-  const [ipTitle, setIpTitle] = useState("");
-  const [ipDescription, setIpDescription] = useState("");
-  const [ipImageUrl, setIpImageUrl] = useState("");
-  const [ipSymbol, setIpSymbol] = useState("");
   const [tokenName, setTokenName] = useState("");
   const [tokenSymbolLaunch, setTokenSymbolLaunch] = useState("");
+  const [launchImageUrl, setLaunchImageUrl] = useState("");
+  const [launchDescription, setLaunchDescription] = useState("");
   const [launchPercentage, setLaunchPercentage] = useState<number>(100);
+  const [launchLogoFile, setLaunchLogoFile] = useState<File | null>(null);
+  const logoInputRef = useRef<HTMLInputElement | null>(null);
+
+  const handleLogoFileChange = (file: File | null) => {
+    setLaunchLogoFile(file);
+  };
 
   useEffect(() => {
     const fetchAssets = async () => {
@@ -172,63 +173,6 @@ export default function CreatePage() {
     }
   };
 
-  const handleRegisterIPAsset = async () => {
-    if (!walletAddress || !primaryWallet) {
-      setError("Please connect your wallet first");
-      return;
-    }
-
-    if (!ipTitle || !ipDescription || !ipImageUrl) {
-      setError("Please fill in all IP asset fields");
-      return;
-    }
-
-    setRegisteringIP(true);
-    setError(null);
-    setSuccess(null);
-
-    try {
-      const descriptionWithSymbol = ipSymbol
-        ? `[${ipSymbol}] ${ipDescription}`
-        : ipDescription;
-
-      const ipMetadata = createSampleIPMetadata(
-        ipTitle,
-        descriptionWithSymbol,
-        ipImageUrl,
-        walletAddress,
-        "IP Creator"
-      );
-
-      const nftMetadata = createSampleNFTMetadata(
-        `${ipTitle} Ownership NFT`,
-        `Ownership NFT for ${ipTitle}`,
-        ipImageUrl
-      );
-
-      const result = await registerIPAsset(ipMetadata, nftMetadata, primaryWallet);
-
-      if (result.success) {
-        setSuccess(`IP Asset registered successfully!\nIP ID: ${result.ipId}\nTransaction: ${result.txHash}`);
-
-        setIpTitle("");
-        setIpDescription("");
-        setIpImageUrl("");
-        setIpSymbol("");
-        setShowRegistrationForm(false);
-
-        const assets = await fetchWalletIPAssets(walletAddress, primaryWallet);
-        setIpAssets(assets);
-      } else {
-        setError(result.error || "Failed to register IP Asset");
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to register IP Asset");
-    } finally {
-      setRegisteringIP(false);
-    }
-  };
-
   const handleCreatePool = async (ipAsset: IPAsset) => {
     try {
       setCreatingPool(ipAsset.ipId);
@@ -258,6 +202,53 @@ export default function CreatePage() {
 
       if (!result.success) {
         throw new Error(result.error || "Failed to launch on bonding curve");
+      }
+
+      let metadataUri: string | null = null;
+      try {
+        let imageUrl = launchImageUrl.trim();
+        if (launchLogoFile) {
+          const imageRes = await pinFileToIPFS(launchLogoFile, launchLogoFile.name);
+          imageUrl = imageRes.gatewayUrl;
+        }
+
+        const metadata = {
+          name: nameForLaunch,
+          symbol: symbolForLaunch,
+          description:
+            launchDescription || selectedIPAsset.description || "",
+          image: imageUrl || undefined,
+          attributes: [
+            {
+              trait_type: "Royalty Token",
+              value: ipAsset.royaltyVaultAddress,
+            },
+            {
+              trait_type: "IP ID",
+              value: ipAsset.ipId,
+            },
+          ],
+        };
+
+        const metaRes = await pinJSONToIPFS(
+          metadata,
+          `${symbolForLaunch || nameForLaunch}-wrapper`
+        );
+        metadataUri = metaRes.uri;
+
+        if (supabase) {
+          await supabase.from("launches").insert({
+            royalty_token_address: ipAsset.royaltyVaultAddress.toLowerCase(),
+            creator_address: walletAddress?.toLowerCase() || null,
+            name: nameForLaunch,
+            symbol: symbolForLaunch,
+            description: launchDescription || null,
+            image_url: imageUrl || null,
+            metadata_uri: metadataUri,
+          });
+        }
+      } catch (metaError) {
+        console.error("Failed to persist wrapper metadata", metaError);
       }
 
       setLaunchStep(4);
@@ -482,84 +473,13 @@ export default function CreatePage() {
             )}
           </div>
 
-          {/* Create / Launch Form */}
+          {/* Create / Launch Form (only launch existing IP assets) */}
           <div className="glass-card rounded-2xl p-6">
             <div className="flex items-center gap-3 mb-6">
               <div className="p-2 bg-blue-500/20 rounded-lg border border-blue-500/30">
                 <TrendingUp className="h-5 w-5 text-blue-400" />
               </div>
-              <h2 className="text-xl font-semibold text-white">Create & Launch</h2>
-            </div>
-
-            {/* Register IP Asset */}
-            <div className="mb-8">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="font-medium text-white">Register New IP Asset</h3>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowRegistrationForm((v) => !v)}
-                >
-                  {showRegistrationForm ? "Hide" : "Open"} Form
-                </Button>
-              </div>
-
-              {showRegistrationForm && (
-                <Card className="mb-4 bg-background/80 border-border/80">
-                  <CardContent className="pt-6 space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="ipTitle">Title</Label>
-                      <Input
-                        id="ipTitle"
-                        value={ipTitle}
-                        onChange={(e) => setIpTitle(e.target.value)}
-                        placeholder="My Music Pack Vol. 1"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="ipDescription">Description</Label>
-                      <Input
-                        id="ipDescription"
-                        value={ipDescription}
-                        onChange={(e) => setIpDescription(e.target.value)}
-                        placeholder="High quality stems and loops"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="ipSymbol">Symbol (optional)</Label>
-                      <Input
-                        id="ipSymbol"
-                        value={ipSymbol}
-                        onChange={(e) => setIpSymbol(e.target.value.toUpperCase().slice(0, 10))}
-                        placeholder="MUSIC"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="ipImageUrl">Image / Media URL</Label>
-                      <Input
-                        id="ipImageUrl"
-                        value={ipImageUrl}
-                        onChange={(e) => setIpImageUrl(e.target.value)}
-                        placeholder="https://..."
-                      />
-                    </div>
-                    <Button
-                      onClick={handleRegisterIPAsset}
-                      disabled={registeringIP}
-                      className="w-full"
-                    >
-                      {registeringIP ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Registering...
-                        </>
-                      ) : (
-                        "Register IP Asset"
-                      )}
-                    </Button>
-                  </CardContent>
-                </Card>
-              )}
+              <h2 className="text-xl font-semibold text-white">Launch Existing IP</h2>
             </div>
 
             {/* Selected IP + Launch */}
@@ -576,7 +496,8 @@ export default function CreatePage() {
                 <div className="p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-xl">
                   <h3 className="font-medium text-green-300 mb-2">Story Protocol Pair Details</h3>
                   <p className="text-sm text-green-200">
-                    Royalty Token + WIP pair on SovryRouter ({SOVRY_ROUTER_ADDRESS.slice(0, 10)}...).
+                    Royalty Token + WIP pair on SovryRouter will be created automatically when this launch graduates to
+                    the DEX.
                   </p>
                 </div>
 
@@ -608,6 +529,50 @@ export default function CreatePage() {
                         value={tokenSymbolLaunch}
                         onChange={(e) => setTokenSymbolLaunch(e.target.value.toUpperCase().slice(0, 10))}
                         placeholder="MEME"
+                        className="h-8 text-xs"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
+                    <div className="space-y-1">
+                      <Label className="text-xs text-slate-300">Token Logo (file)</Label>
+                      <div
+                        onDragOver={(e) => {
+                          e.preventDefault();
+                        }}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          const file = e.dataTransfer.files?.[0] || null;
+                          if (file) {
+                            handleLogoFileChange(file);
+                          }
+                        }}
+                        onClick={() => logoInputRef.current?.click()}
+                        className="h-20 border border-dashed border-slate-500/60 rounded-md px-3 py-2 text-[11px] text-slate-300 flex items-center cursor-pointer bg-slate-900/40"
+                      >
+                        <span className="truncate">
+                          {launchLogoFile
+                            ? launchLogoFile.name
+                            : "Drag & drop image here, or click to browse"}
+                        </span>
+                      </div>
+                      <input
+                        ref={logoInputRef}
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) =>
+                          handleLogoFileChange(e.target.files?.[0] || null)
+                        }
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs text-slate-300">Token Description (optional)</Label>
+                      <Input
+                        value={launchDescription}
+                        onChange={(e) => setLaunchDescription(e.target.value)}
+                        placeholder="Short description for this wrapped IP token"
                         className="h-8 text-xs"
                       />
                     </div>

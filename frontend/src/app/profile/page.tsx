@@ -233,7 +233,7 @@ export default function ProfilePage() {
     }
   };
 
-  // Fetch user pools
+  // Fetch user pools (external DEX API disabled for now)
   const fetchUserPools = async () => {
     if (!walletAddress) return;
 
@@ -241,71 +241,12 @@ export default function ProfilePage() {
       setPoolsLoading(true);
       setPoolsError(null);
 
-      const response = await fetch(
-        `http://localhost:3001/api/liquidity/positions/${walletAddress}`
-      );
-      if (!response.ok) {
-        throw new Error(`API error: ${response.status}`);
-      }
-
-      const userPositions = await response.json();
-
-      const rawPositions =
-        (userPositions.positions && userPositions.positions.positions) ||
-        userPositions.positions ||
-        [];
-
-      if (rawPositions.length > 0) {
-        const mappedPools: UserPool[] = rawPositions.map(
-          (position: any) => {
-            const token0Address = position.token0?.id?.toLowerCase();
-            const token1Address = position.token1?.id?.toLowerCase();
-
-            const token0Info = TOKEN_MAPPING[token0Address] || {
-              symbol: position.token0?.symbol || "UNKNOWN",
-              name: position.token0?.name || "Unknown Token",
-            };
-
-            const token1Info = TOKEN_MAPPING[token1Address] || {
-              symbol: position.token1?.symbol || "UNKNOWN",
-              name: position.token1?.name || "Unknown Token",
-            };
-
-            return {
-              id: position.poolAddress || position.id || "",
-              token0: {
-                id: position.token0?.id || "",
-                symbol: token0Info.symbol,
-                name: token0Info.name,
-              },
-              token1: {
-                id: position.token1?.id || "",
-                symbol: token1Info.symbol,
-                name: token1Info.name,
-              },
-              userLpBalance: ethers.formatEther(position.liquidity || "0"),
-              userLpPercentage: position.poolOwnership
-                ? parseFloat(position.poolOwnership) * 100
-                : 0,
-              reserve0: position.reserve0 || "0",
-              reserve1: position.reserve1 || "0",
-              totalSupply: position.totalSupply || "1",
-              volumeUSD: position.volumeUSD || "0",
-              txCount: "0",
-              createdAtTimestamp: Math.floor(Date.now() / 1000).toString(),
-              tvlUSD: position.valueUSD || 0,
-              userTVL: position.valueUSD || 0,
-            };
-          }
-        );
-
-        setUserPools(mappedPools);
-      } else {
-        setUserPools([]);
-      }
+      // Liquidity positions backend (localhost:3001) is not required for SovryLaunchpad v1.
+      // For now, we simply clear any existing pools so the UI renders without errors.
+      setUserPools([]);
     } catch (err) {
-      console.error("Error fetching user pools:", err);
-      setPoolsError("Failed to fetch liquidity positions");
+      console.error("Error handling user pools:", err);
+      setPoolsError(null);
       setUserPools([]);
     } finally {
       setPoolsLoading(false);
