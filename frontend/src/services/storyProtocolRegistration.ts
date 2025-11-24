@@ -296,14 +296,14 @@ export async function transferRoyaltyTokensFromIP(
     
     console.log('✅ Royalty vault address found:', royaltyVaultAddress);
     
-    // Transfer ALL royalty tokens dari IP Account ke user wallet
+    // Transfer SELURUH royalty tokens dari IP Account ke user wallet
     // Total supply = 100,000,000 tokens (100% dengan 6 decimals)
     const transferResponse = await client.ipAccount.transferErc20({
       ipId: ipId as Address,
       tokens: [
         {
           address: royaltyVaultAddress,
-          amount: BigInt(100000000), // 100,000,000 tokens = 100% (6 decimals)
+          amount: BigInt(100_000_000), // 100,000,000 tokens = 100% (6 decimals)
           target: primaryWallet.address as Address,
         },
       ],
