@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 
 // Start worker for VPS deployment
-require('dotenv').config();
+const path = require('path');
+require('dotenv').config({ path: path.resolve(__dirname, '..', '.env') });
 const worker = require('./worker');
 
 console.log('🚀 Starting Sovry Worker on VPS...');

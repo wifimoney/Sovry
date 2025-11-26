@@ -1,0 +1,23 @@
+{
+  "name": "sovry-backend",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Sovry API server and background worker",
+  "main": "server.js",
+  "scripts": {
+    "dev": "node server.js",
+    "start:api": "node server.js",
+    "start:worker": "node start-worker.js",
+    "dev:worker": "nodemon start-worker.js"
+  },
+  "dependencies": {
+    "axios": "^1.13.2",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
+    "ethers": "^5.7.2",
+    "express": "^5.1.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.11"
+  }
+}

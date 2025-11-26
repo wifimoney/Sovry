@@ -1,8 +1,11 @@
+const path = require('path');
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
   turbopack: {
-    root: __dirname, // Set root to frontend directory explicitly
+    // Point to monorepo root so Turbopack can resolve next/package.json correctly
+    root: path.resolve(__dirname, '..'),
   },
   // Ignore parent directory lockfiles to prevent warnings
   // This is a monorepo with backend/ and frontend/ structure

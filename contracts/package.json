@@ -1,19 +1,39 @@
 {
   "name": "sovry-contracts",
   "version": "1.0.0",
+  "private": true,
   "description": "Sovry DEX Smart Contracts",
   "scripts": {
     "compile": "hardhat compile",
-    "deploy": "hardhat run scripts/deploy.js --network storyTestnet",
-    "deploy:ankr": "hardhat run scripts/deploy.js --network storyTestnetAnkr",
-    "verify": "hardhat verify --network storyTestnet"
+    "test": "hardhat test",
+    "coverage": "hardhat coverage",
+    "deploy:launchpad": "hardhat run scripts/deploy-launchpad.ts --network aeneid",
+    "verify": "hardhat verify --network aeneid",
+    "typechain": "hardhat typechain"
   },
   "devDependencies": {
-    "@nomicfoundation/hardhat-toolbox": "^6.1.0",
+    "@nomicfoundation/hardhat-chai-matchers": "^1.0.5",
+    "@nomicfoundation/hardhat-toolbox": "^2.0.0",
+    "@nomicfoundation/hardhat-verify": "^2.0.0",
+    "@nomiclabs/hardhat-ethers": "^2.2.3",
+    "@nomiclabs/hardhat-etherscan": "^3.1.8",
     "@tenderly/hardhat-tenderly": "^2.5.2",
-    "hardhat": "^2.22.0"
+    "@typechain/ethers-v5": "^10.1.0",
+    "@typechain/hardhat": "^6.1.6",
+    "@types/chai": "^4.3.11",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "^24.10.1",
+    "chai": "^4.3.10",
+    "hardhat": "^2.22.6",
+    "hardhat-gas-reporter": "^2.2.1",
+    "solidity-coverage": "^0.8.15",
+    "ts-node": "^10.9.2",
+    "typechain": "^8.3.2",
+    "typescript": "^5.9.3"
   },
   "dependencies": {
-    "@openzeppelin/contracts": "^5.0.0"
+    "@openzeppelin/contracts": "^5.4.0",
+    "@uniswap/v2-core": "^1.0.1",
+    "@uniswap/v2-periphery": "^1.1.0-beta.0"
   }
 }

@@ -45,7 +45,11 @@ const UserProfile = () => {
           setBio("");
         }
       } catch (err: any) {
-        console.error("Failed to load profile", err);
+        console.warn("Failed to load profile from Supabase", {
+          message: err?.message,
+          code: err?.code,
+          name: err?.name,
+        });
         setError("Failed to load profile from Supabase");
       } finally {
         setLoading(false);

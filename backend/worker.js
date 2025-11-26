@@ -2,7 +2,8 @@
 // Implements the sequence diagram architecture
 // Runs every 1 minute to fetch IP price and cache in memory
 
-require('dotenv').config();
+const path = require('path');
+require('dotenv').config({ path: path.resolve(__dirname, '..', '.env') });
 const storyscanService = require('./services/storyscanService');
 const pricingService = require('./services/pricingService');
 
