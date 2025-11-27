@@ -72,7 +72,7 @@ export default function TokenLogo({
         setHasError(true)
         setIsLoading(false)
       } catch (error) {
-        console.error("Error fetching token image:", error)
+        console.warn("Error fetching token image:", error)
         setHasError(true)
         setIsLoading(false)
       }
