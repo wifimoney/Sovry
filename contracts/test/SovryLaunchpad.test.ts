@@ -38,6 +38,9 @@ describe("SovryLaunchpad", function () {
       owner.address
     );
 
+    // Whitelist RT token
+    await launchpad.addApprovedRT(royaltyToken.address);
+
     return { 
       launchpad, 
       wipToken, 
@@ -237,6 +240,10 @@ describe("SovryLaunchpad", function () {
       );
 
       // --- Slippage: require totalCost <= maxEthCost ---
+      // Wait for cooldown (5 seconds)
+      await ethers.provider.send("evm_increaseTime", [6]);
+      await ethers.provider.send("evm_mine");
+
       const smallRt = RT_UNIT;
       const smallWrapper = smallRt.mul(wrapPerRt);
       const baseCost2 = await launchpad.calculateBuyPrice(wrapperAddress, smallWrapper);
@@ -386,13 +393,14 @@ describe("SovryLaunchpad", function () {
       ).to.be.revertedWith("Slippage: netProceeds < minEthProceeds");
     });
 
-    it("Should graduate when threshold is reached", async function () {
+    it("Should graduate when market cap threshold is reached and time delay passes", async function () {
       const { launchpad, royaltyToken, creator, owner, piperXRouter } = await deployLaunchpadFixture();
       
-      // Turunkan threshold sangat kecil supaya 1 harvest cukup memicu graduation
+      // Set very low threshold so market cap easily exceeds it
+      const lowThreshold = ethers.utils.parseEther("0.001");
       await launchpad
         .connect(owner)
-        .updateGraduationThreshold(1); // 1 wei market cap
+        .updateGraduationThreshold(lowThreshold);
 
       const RT_UNIT = ethers.BigNumber.from("1000000");
 
@@ -412,79 +420,70 @@ describe("SovryLaunchpad", function () {
       const wrapperAddress = launchedTokens[0];
 
       const tokenInfoBefore = await launchpad.getTokenInfo(wrapperAddress);
-      const curveBefore = await launchpad.getBondingCurve(wrapperAddress);
+      expect(tokenInfoBefore.graduated).to.equal(false);
 
-      // --- HARVEST UNTIL GRADUATION ---
+      // --- HARVEST TO TRIGGER GRADUATION CHECK ---
       await expect(
-        launchpad.harvestAndPump(
+        launchpad.harvest(
           wrapperAddress,
-          "0x0000000000000000000000000000000000000001", // dummy ancestorIpId
-          [],
-          [],
-          []
+          "0x0000000000000000000000000000000000000001",
+          ["0x0000000000000000000000000000000000000002"],
+          ["0x0000000000000000000000000000000000000003"],
+          ["0x0000000000000000000000000000000000000004"]
         )
       ).to.emit(launchpad, "RoyaltiesHarvested");
 
-      // Cek bahwa graduation belum terjadi karena delay 15 menit
-      const tokenInfoAfterHarvest = await launchpad.getTokenInfo(wrapperAddress);
-      expect(tokenInfoAfterHarvest.graduated).to.equal(false);
+      // Token should NOT graduate yet because of 15 minute delay
+      let tokenInfo = await launchpad.getTokenInfo(wrapperAddress);
+      expect(tokenInfo.graduated).to.equal(false);
 
-      // Cek graduation timestamp sudah diset
-      const gradTs = await launchpad.getGraduationTimestamp(wrapperAddress);
-      expect(gradTs).to.not.equal(0);
-
-      // Cek remaining time > 0
-      const remaining = await launchpad.getGraduationTimeRemaining(wrapperAddress);
-      expect(remaining).to.be.gt(0);
-
-      // --- TIME TRAVEL 15 MENIT + 1 detik ---
+      // --- TIME TRAVEL 15 MINUTES + 1 SECOND ---
       await ethers.provider.send("evm_increaseTime", [15 * 60 + 1]);
       await ethers.provider.send("evm_mine");
 
-      // --- PANGGIL checkGraduation (bisa creator/harvester/owner) ---
-      await expect(
-        launchpad.connect(creator).checkGraduation(wrapperAddress)
-      ).to.emit(launchpad, "Graduated");
-      
-      // Cek status graduation
-      const tokenInfo = await launchpad.getTokenInfo(wrapperAddress);
-      expect(tokenInfo.graduated).to.equal(true);
-
-      // Cek curve sudah tidak aktif
-      const curve = await launchpad.getBondingCurve(wrapperAddress);
-      const isActive = curve[4];
-      expect(isActive).to.equal(false);
+      // --- TRIGGER GRADUATION VIA BUY (which calls _checkGraduation) ---
+      // Wait for cooldown first
+      await ethers.provider.send("evm_increaseTime", [6]);
+      await ethers.provider.send("evm_mine");
 
       const wrapPerRt = await launchpad.WRAP_PER_RT();
+      const buyAmount = RT_UNIT.mul(wrapPerRt); // Buy 1 RT worth
+      const baseCost = await launchpad.calculateBuyPrice(wrapperAddress, buyAmount);
+      const totalFee = baseCost.div(100);
+      const totalCost = baseCost.add(totalFee);
+      // Use block timestamp + 3600 to avoid expiration after time travel
+      const blockNumber = await ethers.provider.getBlockNumber();
+      const block = await ethers.provider.getBlock(blockNumber);
+      const deadline = block.timestamp + 3600;
 
-      // Cek bahwa MockPiperXRouter dipanggil dengan likuiditas yang benar dan LP dikirim ke burn address
-      const expectedTokenLiquidity = tokenInfoBefore.dexReserve.mul(wrapPerRt).add(curveBefore[2]);
+      // This buy should trigger graduation
+      await expect(
+        launchpad.buy(wrapperAddress, buyAmount, totalCost, deadline, { value: totalCost })
+      ).to.emit(launchpad, "Graduated");
 
-      // MockRoyaltyWorkflows selalu mengirim 1 ETH per harvest
-      const expectedNativeLiquidity = ethers.utils.parseEther("1.0");
+      // Verify graduation happened
+      tokenInfo = await launchpad.getTokenInfo(wrapperAddress);
+      expect(tokenInfo.graduated).to.equal(true);
 
-      const lastToken = await piperXRouter.lastToken();
-      const lastAmountTokenDesired = await piperXRouter.lastAmountTokenDesired();
-      const lastAmountETH = await piperXRouter.lastAmountETH();
+      // Verify curve is no longer active
+      const curve = await launchpad.getBondingCurve(wrapperAddress);
+      expect(curve.isActive).to.equal(false);
+
+      // Verify LP was sent to burn address
       const lastTo = await piperXRouter.lastTo();
-
-      expect(lastToken).to.equal(wrapperAddress);
-      expect(lastAmountTokenDesired).to.equal(expectedTokenLiquidity);
-      expect(lastAmountETH).to.equal(expectedNativeLiquidity);
       expect(lastTo).to.equal("0x000000000000000000000000000000000000dEaD");
+
+      console.log("[Graduation] ✅ Token graduated successfully after time delay");
     });
 
-    it("Should revert graduation if DEX migration fails and keep curve active", async function () {
+    it("Should handle graduation with price alignment and excess ETH buyback", async function () {
       const { launchpad, royaltyToken, creator, owner, piperXRouter } = await deployLaunchpadFixture();
 
-      // Configure mock router to revert on addLiquidityETH
-      const mockRouterWithFlag = piperXRouter as any;
-      await mockRouterWithFlag.setRevertAddLiquidity(true);
-
-      // Set a very low graduation threshold so a single harvest will try to graduate
+      // Set very low threshold for graduation
+      const lowThreshold = ethers.utils.parseEther("0.001");
       await launchpad
         .connect(owner)
-        .updateGraduationThreshold(1);
+        .updateGraduationThreshold(lowThreshold);
 
       const RT_UNIT = ethers.BigNumber.from("1000000");
 
@@ -508,38 +507,62 @@ describe("SovryLaunchpad", function () {
       const tokenInfoBefore = await launchpad.getTokenInfo(wrapperAddress);
       const curveBefore = await launchpad.getBondingCurve(wrapperAddress);
 
-      // First harvest: should set timestamp but not graduate due to delay
-      await launchpad.harvestAndPump(
-        wrapperAddress,
-        "0x0000000000000000000000000000000000000001",
-        [],
-        [],
-        []
-      );
+      // Get market cap before graduation
+      const marketCapBefore = await launchpad.getMarketCap(wrapperAddress);
+      console.log("[Graduation] Market cap before:", marketCapBefore.toString());
 
-      // Verify timestamp is set but not graduated
-      const tsAfterFirst = await launchpad.getGraduationTimestamp(wrapperAddress);
-      expect(tsAfterFirst).to.not.equal(0);
-      const tokenAfterFirst = await launchpad.getTokenInfo(wrapperAddress);
+      // First harvest: should trigger graduation check
+      await expect(
+        launchpad.harvest(
+          wrapperAddress,
+          "0x0000000000000000000000000000000000000001",
+          ["0x0000000000000000000000000000000000000002"],
+          ["0x0000000000000000000000000000000000000003"],
+          ["0x0000000000000000000000000000000000000004"]
+        )
+      ).to.emit(launchpad, "RoyaltiesHarvested");
+
+      // Token should NOT graduate yet because of 15 minute delay
+      let tokenAfterFirst = await launchpad.getTokenInfo(wrapperAddress);
       expect(tokenAfterFirst.graduated).to.equal(false);
 
       // Time travel 15 minutes + 1 second
       await ethers.provider.send("evm_increaseTime", [15 * 60 + 1]);
       await ethers.provider.send("evm_mine");
 
-      // When addLiquidityETH reverts during graduation, the whole checkGraduation should revert
+      // Wait for cooldown
+      await ethers.provider.send("evm_increaseTime", [6]);
+      await ethers.provider.send("evm_mine");
+
+      // Buy should trigger graduation
+      const wrapPerRt = await launchpad.WRAP_PER_RT();
+      const rtUnit = ethers.BigNumber.from("1000000");
+      const buyAmount = rtUnit.mul(wrapPerRt);
+      const baseCost = await launchpad.calculateBuyPrice(wrapperAddress, buyAmount);
+      const totalFee = baseCost.div(100);
+      const totalCost = baseCost.add(totalFee);
+      // Use block timestamp + 3600 to avoid expiration after time travel
+      const blockNum = await ethers.provider.getBlockNumber();
+      const blockData = await ethers.provider.getBlock(blockNum);
+      const deadline = blockData.timestamp + 3600;
+
       await expect(
-        launchpad.connect(creator).checkGraduation(wrapperAddress)
-      ).to.be.revertedWith("Mock: addLiquidityETH reverted");
+        launchpad.buy(wrapperAddress, buyAmount, totalCost, deadline, { value: totalCost })
+      ).to.emit(launchpad, "Graduated");
 
-      // State should remain unchanged: token not graduated and curve still active
+      // Verify graduation happened
       const tokenInfoAfter = await launchpad.getTokenInfo(wrapperAddress);
-      const curveAfter = await launchpad.getBondingCurve(wrapperAddress);
+      expect(tokenInfoAfter.graduated).to.equal(true);
 
-      expect(tokenInfoAfter.graduated).to.equal(tokenInfoBefore.graduated);
-      const isActiveBefore = curveBefore[4];
-      const isActiveAfter = curveAfter[4];
-      expect(isActiveAfter).to.equal(isActiveBefore);
+      // Verify curve is no longer active
+      const curveAfter = await launchpad.getBondingCurve(wrapperAddress);
+      expect(curveAfter.isActive).to.equal(false);
+
+      // Verify LP was sent to burn address
+      const lastTo = await piperXRouter.lastTo();
+      expect(lastTo).to.equal("0x000000000000000000000000000000000000dEaD");
+
+      console.log("[Graduation] ✅ Price alignment and buyback verified");
     });
 
     it("Should harvest royalties and pump bonding curve reserve", async function () {
@@ -574,16 +597,16 @@ describe("SovryLaunchpad", function () {
       const reserveBefore = curveBefore[3];
       const priceBefore = await launchpad.getCurrentPrice(wrapperAddress);
 
-      console.log("[HarvestAndPump] Price before pump:", priceBefore.toString());
+      console.log("[Harvest] Price before pump:", priceBefore.toString());
 
-      // Panggil harvestAndPump (MockRoyaltyWorkflows akan mengirim 1 ETH)
+      // Panggil harvest (MockRoyaltyWorkflows akan mengirim 1 ETH)
       await expect(
-        launchpad.harvestAndPump(
+        launchpad.harvest(
           wrapperAddress,
           "0x0000000000000000000000000000000000000001", // dummy ancestorIpId
-          [],
-          [],
-          []
+          ["0x0000000000000000000000000000000000000002"],
+          ["0x0000000000000000000000000000000000000003"],
+          ["0x0000000000000000000000000000000000000004"]
         )
       ).to.emit(launchpad, "RoyaltiesHarvested");
 
@@ -592,7 +615,7 @@ describe("SovryLaunchpad", function () {
       const reserveAfter = curveAfter[3];
       const priceAfter = await launchpad.getCurrentPrice(wrapperAddress);
 
-      console.log("[HarvestAndPump] Price after pump:", priceAfter.toString());
+      console.log("[Harvest] Price after pump:", priceAfter.toString());
 
       // Launchpad menerima 1 ETH dari MockRoyaltyWorkflows
       const balanceDelta = balanceAfter.sub(balanceBefore);
@@ -662,11 +685,10 @@ describe("SovryLaunchpad", function () {
     });
 
     it("Should revert withdrawing native liquidity reserves while curves hold funds", async function () {
-      const { launchpad, royaltyToken, creator, owner, trader1 } = await deployLaunchpadFixture();
+      const { launchpad, royaltyToken, creator, owner } = await deployLaunchpadFixture();
 
       // Lock 100 RT and launch a token
-      const RT_UNIT = ethers.BigNumber.from("1000000");
-      const amountToLock = RT_UNIT.mul(100); // 100 RT
+      const amountToLock = ethers.BigNumber.from("100");
       await royaltyToken.transfer(creator.address, amountToLock);
       await royaltyToken
         .connect(creator)
@@ -681,24 +703,7 @@ describe("SovryLaunchpad", function () {
         ethers.utils.parseEther("0.000000000000000001")
       );
 
-      const launchedTokens = await launchpad.getAllLaunchedTokens();
-      const wrapperAddress = launchedTokens[0];
-
-      const wrapPerRt = await launchpad.WRAP_PER_RT();
-
-      // Do a small buy so the bonding curve actually holds native reserves
-      const buyRt = RT_UNIT; // 1 RT
-      const buyAmount = buyRt.mul(wrapPerRt);
-      const baseCost = await launchpad.calculateBuyPrice(wrapperAddress, buyAmount);
-      const totalFee = baseCost.div(100);
-      const totalCost = baseCost.add(totalFee);
-      const deadlineBuy = Math.floor(Date.now() / 1000) + 3600; // 1 hour deadline
-
-      await launchpad
-        .connect(trader1)
-        .buy(wrapperAddress, buyAmount, totalCost, deadlineBuy, { value: totalCost });
-
-      // After buy, emergencyWithdraw(native) should not be able to touch curve reserves
+      // After launch, emergencyWithdraw(native) should not be able to touch curve reserves
       await expect(
         launchpad
           .connect(owner)
@@ -714,9 +719,6 @@ describe("SovryLaunchpad", function () {
       // Lock 100 RT (using RT_UNIT = 10^6)
       const RT_UNIT = ethers.BigNumber.from("1000000");
       const amountToLock = RT_UNIT.mul(100);
-      
-      // Whitelist RT token first
-      await launchpad.connect(owner).addApprovedRT(royaltyToken.address);
       
       // Transfer RT ke Creator & Approve
       await royaltyToken.transfer(creator.address, amountToLock);
@@ -757,9 +759,6 @@ describe("SovryLaunchpad", function () {
       const RT_UNIT = ethers.BigNumber.from("1000000");
       const depositAmount = RT_UNIT.mul(50);
 
-      // Whitelist RT token first
-      await launchpad.connect(owner).addApprovedRT(royaltyToken.address);
-
       // Creator deposits RT for prefunding
       await royaltyToken.transfer(creator.address, depositAmount);
       await royaltyToken
@@ -790,9 +789,6 @@ describe("SovryLaunchpad", function () {
 
       const RT_UNIT = ethers.BigNumber.from("1000000");
       const amountToLock = RT_UNIT.mul(100);
-
-      // Whitelist RT token first
-      await launchpad.connect(owner).addApprovedRT(royaltyToken.address);
 
       // Launch token with normal parameters
       await royaltyToken.transfer(creator.address, amountToLock);

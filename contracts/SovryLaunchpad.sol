@@ -241,7 +241,7 @@ contract SovryLaunchpad is ReentrancyGuard, Ownable, Pausable {
     mapping(address => mapping(address => uint256)) public lastResetDay;
 
     /// @notice Purchase cooldown period to prevent rapid dust attacks (in seconds)
-    uint256 public constant PURCHASE_COOLDOWN = 2 minutes;
+    uint256 public constant PURCHASE_COOLDOWN = 5 seconds;
 
     /// @notice Event emitted when RT tokens are deposited for prefunding
     /// @param user Address that deposited tokens
@@ -316,12 +316,12 @@ contract SovryLaunchpad is ReentrancyGuard, Ownable, Pausable {
     /// @param wipAmount Amount of WIP/native that remains pending for future buyback
     event BuybackFailed(address indexed wrapperToken, uint256 wipAmount);
 
-    /// @notice Event emitted when floor price is updated after royalty injection
+    /// @notice Event emitted when reserves are increased after royalty injection
     /// @param wrapperToken Address of the wrapper token
-    /// @param newFloor New floor price
-    event FloorPriceUpdated(
+    /// @param newReserveAmount New total reserve amount
+    event ReservesIncreased(
         address indexed wrapperToken,
-        uint256 newFloor
+        uint256 newReserveAmount
     );
 
     /// @notice Event emitted when a token graduates to DEX
@@ -977,10 +977,10 @@ contract SovryLaunchpad is ReentrancyGuard, Ownable, Pausable {
             // Normalize sold to whole-wrapper units for pricing
             uint256 soldUnits = soldRaw / WRAP_UNIT;
 
-            // Emit event showing updated floor price after royalty injection
-            emit FloorPriceUpdated(
+            // Emit event showing reserves increased after royalty injection
+            emit ReservesIncreased(
                 wrapperToken,
-                curve.basePrice + (soldUnits * curve.priceIncrement)
+                curve.reserveBalance
             );
 
             // Check if token meets graduation threshold
@@ -1230,11 +1230,13 @@ contract SovryLaunchpad is ReentrancyGuard, Ownable, Pausable {
         
         // Additional check: priceIncrement * soldUnits must not overflow
         // Reserve headroom for multiplication by amountUnits
-        uint256 maxCombinedValue = type(uint256).max / (MAX_SUPPLY_UNITS + 1);
-        require(
-            curve.priceIncrement <= maxCombinedValue / soldUnits,
-            "Parameters too large for safe calculation"
-        );
+        if (soldUnits > 0) {
+            uint256 maxCombinedValue = type(uint256).max / (MAX_SUPPLY_UNITS + 1);
+            require(
+                curve.priceIncrement <= maxCombinedValue / soldUnits,
+                "Parameters too large for safe calculation"
+            );
+        }
 
         // Linear bonding curve based on soldUnits:
         // price(sold) = basePrice + (sold * increment)
