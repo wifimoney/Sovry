@@ -15,7 +15,7 @@ const config: HardhatUserConfig = {
     settings: {
       optimizer: {
         enabled: true,
-        runs: 50, // Low runs value for smaller bytecode
+        runs: 200, // Minimal runs value to reduce stack depth for viaIR
       },
       viaIR: true, // Enable viaIR to handle stack depth
     },

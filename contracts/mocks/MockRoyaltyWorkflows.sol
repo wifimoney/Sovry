@@ -1,7 +1,15 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
+pragma solidity ^0.8.0;
 
+/**
+ * @notice Mock implementation of Story Protocol Royalty Workflows
+ * @dev Used for testing - sends 1 ETH to the claimer on each claimAllRevenue call
+ */
 contract MockRoyaltyWorkflows {
+    /**
+     * @notice Mock claimAllRevenue that sends 1 ETH to claimer
+     * @dev Returns array of amounts claimed (1 ETH for each currency token)
+     */
     function claimAllRevenue(
         address ancestorIpId,
         address claimer,
@@ -9,17 +17,20 @@ contract MockRoyaltyWorkflows {
         address[] calldata royaltyPolicies,
         address[] calldata currencyTokens
     ) external returns (uint256[] memory amountsClaimed) {
-        // Simulasi: Kirim balik WIP ke claimer (Smart Contract Launchpad)
-        // Asumsi: Kontrak ini sudah didanai WIP sebelumnya
-        uint256 amount = 1 ether; 
-        (bool success, ) = claimer.call{value: amount}(""); 
-        require(success, "Mock claim failed");
+        // Create return array with same length as currencyTokens
+        amountsClaimed = new uint256[](currencyTokens.length);
         
-        amountsClaimed = new uint256[](1);
-        amountsClaimed[0] = amount;
-        return amountsClaimed;
+        // Send 1 ETH to claimer for each currency token
+        uint256 totalAmount = 1 ether;
+        (bool success, ) = payable(claimer).call{value: totalAmount}("");
+        require(success, "Transfer failed");
+        
+        // Fill return array with 1 ETH for each token
+        for (uint256 i = 0; i < currencyTokens.length; i++) {
+            amountsClaimed[i] = 1 ether;
+        }
     }
-    
-    // Fungsi untuk mendanai mock ini agar bisa bayar claim
+
+    // Allow contract to receive ETH
     receive() external payable {}
 }

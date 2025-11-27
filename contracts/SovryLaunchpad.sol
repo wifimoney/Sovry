@@ -969,13 +969,8 @@ contract SovryLaunchpad is ReentrancyGuard, Ownable, Pausable {
             curve.reserveBalance += claimedAmount;
             totalCurveReserves += claimedAmount;
 
-            uint256 initialCurveSupply = token.initialCurveSupply;
-            uint256 soldRaw = initialCurveSupply > curve.currentSupply
-                ? (initialCurveSupply - curve.currentSupply)
-                : 0;
-
-            // Normalize sold to whole-wrapper units for pricing
-            uint256 soldUnits = soldRaw / WRAP_UNIT;
+            // Emit buyback event (no tokens burned, just reserve injection)
+            emit BuybackAndBurn(wrapperToken, claimedAmount, 0);
 
             // Emit event showing reserves increased after royalty injection
             emit ReservesIncreased(
