@@ -50,6 +50,7 @@ const newLaunchpadAbi = [
           { internalType: "bool", name: "graduated", type: "bool" },
           { internalType: "uint256", name: "totalRoyaltiesHarvested", type: "uint256" },
           { internalType: "address", name: "vaultAddress", type: "address" },
+          { internalType: "uint256", name: "dexReserve", type: "uint256" },
         ],
         internalType: "struct SovryLaunchpad.LaunchedToken",
         name: "",

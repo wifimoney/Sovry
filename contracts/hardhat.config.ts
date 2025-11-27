@@ -17,7 +17,13 @@ const config: HardhatUserConfig = {
         enabled: true,
         runs: 200,
       },
+      viaIR: true,
     },
+  },
+  paths: {
+    // Treat this folder (./) as the Solidity sources directory so that
+    // files like SovryLaunchpad.sol at the project root are compiled.
+    sources: "./",
   },
   defaultNetwork: "hardhat",
   networks: {

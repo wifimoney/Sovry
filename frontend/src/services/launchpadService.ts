@@ -99,6 +99,7 @@ export async function getLaunchInfo(tokenAddress: string): Promise<LaunchInfo | 
             boolean,
             bigint,
             string,
+            bigint,
           ]>,
           publicClient.readContract({
             address: SOVRY_LAUNCHPAD_ADDRESS as Address,
@@ -120,8 +121,17 @@ export async function getLaunchInfo(tokenAddress: string): Promise<LaunchInfo | 
           }) as Promise<bigint>,
         ]);
 
-        const [rtAddress, wrapperAddress, creator, _launchTime, totalLocked, graduated, _totalRoyaltiesHarvested, vaultAddress] =
-          tokenInfo;
+        const [
+          rtAddress,
+          wrapperAddress,
+          creator,
+          _launchTime,
+          totalLocked,
+          graduated,
+          _totalRoyaltiesHarvested,
+          vaultAddress,
+          dexReserve,
+        ] = tokenInfo;
 
         // If the wrapper was never launched, wrapperAddress will be zero
         if (!wrapperAddress || wrapperAddress === "0x0000000000000000000000000000000000000000") {
@@ -129,8 +139,18 @@ export async function getLaunchInfo(tokenAddress: string): Promise<LaunchInfo | 
         }
 
         const [_basePrice, _priceIncrement, currentSupply, _reserveBalance, _isActive] = curve;
+
+        // Only the bonding-curve portion is actually tradable on the curve:
+        // initialCurveSupply = totalLocked - dexReserve
+        const initialCurveSupply =
+          totalLocked > dexReserve ? (totalLocked as bigint) - (dexReserve as bigint) : 0n;
+
+        // tokensSold = initialCurveSupply - currentSupply (never negative)
         const tokensSold =
-          totalLocked > currentSupply ? (totalLocked as bigint) - (currentSupply as bigint) : 0n;
+          initialCurveSupply > (currentSupply as bigint)
+            ? initialCurveSupply - (currentSupply as bigint)
+            : 0n;
+
         const totalRaised = marketCap ?? 0n;
 
         return {
@@ -426,6 +446,7 @@ const newLaunchpadAbi = [
           { internalType: "bool", name: "graduated", type: "bool" },
           { internalType: "uint256", name: "totalRoyaltiesHarvested", type: "uint256" },
           { internalType: "address", name: "vaultAddress", type: "address" },
+          { internalType: "uint256", name: "dexReserve", type: "uint256" },
         ],
         internalType: "struct SovryLaunchpad.LaunchedToken",
         name: "",
@@ -443,7 +464,9 @@ const contractVersionCache = new Map<string, "new" | "old">();
 /**
  * Detect which contract version is deployed
  */
-export async function detectContractVersion(launchpadAddress: string = SOVRY_LAUNCHPAD_ADDRESS): Promise<"new" | "old"> {
+export async function detectContractVersion(
+  launchpadAddress: string = SOVRY_LAUNCHPAD_ADDRESS
+): Promise<"new" | "old"> {
   const cached = contractVersionCache.get(launchpadAddress);
   if (cached) return cached;
 
