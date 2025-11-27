@@ -109,8 +109,14 @@ contract SovryLaunchpad is ReentrancyGuard, Ownable, Pausable {
     /// @dev 1e30 wei per RT unit still leaves a very large headroom before overflow
     uint256 public constant MAX_PRICE_INCREMENT = 1e30;
 
+    /// @notice Maximum percentage of the initial curve supply that can be purchased in a single transaction (in basis points)
+    uint256 public constant MAX_BUY_PER_TX_BPS = 500; // 5%
+
     /// @notice Default graduation threshold in wei (e.g., $69,000 worth of native token)
     uint256 public graduationThreshold;
+
+    /// @notice Minimum time that market cap must stay above the graduation threshold before a token can graduate
+    uint256 public constant GRADUATION_DELAY = 15 minutes;
 
     /// @notice PiperX V2 Router address for liquidity migration
     address public piperXRouter;
@@ -195,6 +201,9 @@ contract SovryLaunchpad is ReentrancyGuard, Ownable, Pausable {
 
     /// @notice Array of all launched wrapper token addresses
     address[] public allLaunchedTokens;
+
+    /// @notice Timestamp when a given wrapper token first met the graduation threshold; used to enforce GRADUATION_DELAY
+    mapping(address => uint256) public graduationTimestamp;
 
     /// @notice Total native reserves held by all bonding curves
     uint256 public totalCurveReserves;
@@ -568,6 +577,12 @@ contract SovryLaunchpad is ReentrancyGuard, Ownable, Pausable {
         require(amount % WRAP_UNIT == 0, "Invalid amount step");
         require(curve.currentSupply >= amount, "Insufficient supply");
 
+        // Enforce a per-transaction buy cap as a fraction of the initial curve supply
+        if (token.initialCurveSupply > 0) {
+            uint256 maxPerTx = (token.initialCurveSupply * MAX_BUY_PER_TX_BPS) / BPS_DENOMINATOR;
+            require(amount <= maxPerTx, "Exceeds max buy per transaction");
+        }
+
         // Calculate base cost (before trading fees) using linear bonding curve formula in wrapper units
         uint256 baseCost = calculateBuyPrice(wrapperToken, amount);
 
@@ -756,11 +771,8 @@ contract SovryLaunchpad is ReentrancyGuard, Ownable, Pausable {
                 curve.basePrice + (soldUnits * curve.priceIncrement)
             );
 
-            // Check graduation after pump
-            uint256 marketCap = getMarketCap(wrapperToken);
-            if (marketCap >= graduationThreshold && !token.graduated) {
-                _graduate(wrapperToken);
-            }
+            // Check graduation using a time-based delay on top of the market cap threshold.
+            _checkGraduation(wrapperToken);
         } else {
             // If the token has graduated, use royalties for buyback-and-burn on PiperX instead of
             // injecting them into the bonding curve reserve.
