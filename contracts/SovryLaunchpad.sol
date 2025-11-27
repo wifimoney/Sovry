@@ -8,6 +8,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Pausable.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
 import "./SovryToken.sol";
+import "./libraries/BondingCurveLib.sol";
 
 /**
  * @notice Interface for Story Protocol Royalty Workflows
@@ -1288,14 +1289,6 @@ contract SovryLaunchpad is ReentrancyGuard, Ownable, Pausable {
         uint256 soldUnits = soldRaw / WRAP_UNIT;
         uint256 amountUnits = amount / WRAP_UNIT;
 
-        // OVERFLOW FIX: Prevent overflow with combined parameter safety checks
-        // Ensure soldUnits and amountUnits stay within safe bounds
-        require(soldUnits <= MAX_SUPPLY_UNITS, "Supply exceeds safe bounds");
-        require(amountUnits <= MAX_SUPPLY_UNITS, "Amount exceeds safe bounds");
-        
-        // Additional check: priceIncrement * soldUnits must not overflow
-        // Reserve headroom for multiplication by amountUnits
-        uint256 maxCombinedValue = type(uint256).max / (MAX_SUPPLY_UNITS + 1);
         // Proceeds for selling `amountUnits` = basePrice * amountUnits
         //   + priceIncrement * (soldUnits * amountUnits - amountUnits^2 / 2)
 
