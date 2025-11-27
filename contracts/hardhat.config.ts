@@ -15,9 +15,9 @@ const config: HardhatUserConfig = {
     settings: {
       optimizer: {
         enabled: true,
-        runs: 200,
+        runs: 50, // Low runs value for smaller bytecode
       },
-      viaIR: true,
+      viaIR: true, // Enable viaIR to handle stack depth
     },
   },
   paths: {
@@ -27,7 +27,9 @@ const config: HardhatUserConfig = {
   },
   defaultNetwork: "hardhat",
   networks: {
-    hardhat: {},
+    hardhat: {
+      allowUnlimitedContractSize: true,
+    },
     aeneid: {
       url: AENEID_RPC_URL,
       chainId: 1315,

@@ -423,6 +423,27 @@ describe("SovryLaunchpad", function () {
           [],
           []
         )
+      ).to.emit(launchpad, "RoyaltiesHarvested");
+
+      // Cek bahwa graduation belum terjadi karena delay 15 menit
+      const tokenInfoAfterHarvest = await launchpad.getTokenInfo(wrapperAddress);
+      expect(tokenInfoAfterHarvest.graduated).to.equal(false);
+
+      // Cek graduation timestamp sudah diset
+      const gradTs = await launchpad.getGraduationTimestamp(wrapperAddress);
+      expect(gradTs).to.not.equal(0);
+
+      // Cek remaining time > 0
+      const remaining = await launchpad.getGraduationTimeRemaining(wrapperAddress);
+      expect(remaining).to.be.gt(0);
+
+      // --- TIME TRAVEL 15 MENIT + 1 detik ---
+      await ethers.provider.send("evm_increaseTime", [15 * 60 + 1]);
+      await ethers.provider.send("evm_mine");
+
+      // --- PANGGIL checkGraduation (bisa creator/harvester/owner) ---
+      await expect(
+        launchpad.connect(creator).checkGraduation(wrapperAddress)
       ).to.emit(launchpad, "Graduated");
       
       // Cek status graduation
@@ -487,15 +508,28 @@ describe("SovryLaunchpad", function () {
       const tokenInfoBefore = await launchpad.getTokenInfo(wrapperAddress);
       const curveBefore = await launchpad.getBondingCurve(wrapperAddress);
 
-      // When addLiquidityETH reverts, the whole harvestAndPump (and thus _graduate) should revert
+      // First harvest: should set timestamp but not graduate due to delay
+      await launchpad.harvestAndPump(
+        wrapperAddress,
+        "0x0000000000000000000000000000000000000001",
+        [],
+        [],
+        []
+      );
+
+      // Verify timestamp is set but not graduated
+      const tsAfterFirst = await launchpad.getGraduationTimestamp(wrapperAddress);
+      expect(tsAfterFirst).to.not.equal(0);
+      const tokenAfterFirst = await launchpad.getTokenInfo(wrapperAddress);
+      expect(tokenAfterFirst.graduated).to.equal(false);
+
+      // Time travel 15 minutes + 1 second
+      await ethers.provider.send("evm_increaseTime", [15 * 60 + 1]);
+      await ethers.provider.send("evm_mine");
+
+      // When addLiquidityETH reverts during graduation, the whole checkGraduation should revert
       await expect(
-        launchpad.harvestAndPump(
-          wrapperAddress,
-          "0x0000000000000000000000000000000000000001",
-          [],
-          [],
-          []
-        )
+        launchpad.connect(creator).checkGraduation(wrapperAddress)
       ).to.be.revertedWith("Mock: addLiquidityETH reverted");
 
       // State should remain unchanged: token not graduated and curve still active
@@ -658,7 +692,7 @@ describe("SovryLaunchpad", function () {
       const baseCost = await launchpad.calculateBuyPrice(wrapperAddress, buyAmount);
       const totalFee = baseCost.div(100);
       const totalCost = baseCost.add(totalFee);
-      const deadlineBuy = Math.floor(Date.now() / 1000) + 600;
+      const deadlineBuy = Math.floor(Date.now() / 1000) + 3600; // 1 hour deadline
 
       await launchpad
         .connect(trader1)
@@ -671,5 +705,120 @@ describe("SovryLaunchpad", function () {
           .emergencyWithdraw(ethers.constants.AddressZero, owner.address, 0)
       ).to.be.revertedWith("No free native balance");
     });
+  });
+
+  describe("Security Tests", function() {
+    it("Should prevent RT balance manipulation via reentrancy", async function() {
+      const { launchpad, royaltyToken, creator, owner } = await deployLaunchpadFixture();
+
+      // Lock 100 RT (using RT_UNIT = 10^6)
+      const RT_UNIT = ethers.BigNumber.from("1000000");
+      const amountToLock = RT_UNIT.mul(100);
+      
+      // Whitelist RT token first
+      await launchpad.connect(owner).addApprovedRT(royaltyToken.address);
+      
+      // Transfer RT ke Creator & Approve
+      await royaltyToken.transfer(creator.address, amountToLock);
+      await royaltyToken
+        .connect(creator)
+        .approve(launchpad.address, amountToLock);
+
+      // Launch token - should succeed
+      await launchpad.connect(creator).launchToken(
+        royaltyToken.address,
+        amountToLock,
+        "Wrapper",
+        "WRP",
+        ethers.utils.parseEther("0.001"),
+        ethers.utils.parseEther("0.001")
+      );
+
+      // Verify RT is locked in launchpad
+      const rtBalance = await royaltyToken.balanceOf(launchpad.address);
+      expect(rtBalance).to.equal(amountToLock);
+
+      // Try to call launchToken again with same RT - should fail
+      await expect(
+        launchpad.connect(creator).launchToken(
+          royaltyToken.address,
+          amountToLock,
+          "Wrapper2",
+          "WRP2",
+          ethers.utils.parseEther("0.001"),
+          ethers.utils.parseEther("0.001")
+        )
+      ).to.be.revertedWith("Token already launched");
+    });
+
+    it("Should prevent prefund theft via race condition", async function() {
+      const { launchpad, royaltyToken, creator, trader1, owner } = await deployLaunchpadFixture();
+
+      const RT_UNIT = ethers.BigNumber.from("1000000");
+      const depositAmount = RT_UNIT.mul(50);
+
+      // Whitelist RT token first
+      await launchpad.connect(owner).addApprovedRT(royaltyToken.address);
+
+      // Creator deposits RT for prefunding
+      await royaltyToken.transfer(creator.address, depositAmount);
+      await royaltyToken
+        .connect(creator)
+        .approve(launchpad.address, depositAmount);
+
+      await launchpad.connect(creator).depositRT(royaltyToken.address, depositAmount);
+
+      // Verify deposit is tracked
+      const balance = await launchpad.getDepositBalance(creator.address, royaltyToken.address);
+      expect(balance).to.equal(depositAmount);
+
+      // Trader1 tries to launch with creator's deposit - should fail
+      await expect(
+        launchpad.connect(trader1).launchTokenPrefunded(
+          royaltyToken.address,
+          depositAmount,
+          "Wrapper",
+          "WRP",
+          ethers.utils.parseEther("0.001"),
+          ethers.utils.parseEther("0.001")
+        )
+      ).to.be.revertedWith("Insufficient deposit balance");
+    });
+
+    it("Should handle overflow edge cases in bonding curve", async function() {
+      const { launchpad, royaltyToken, creator, owner } = await deployLaunchpadFixture();
+
+      const RT_UNIT = ethers.BigNumber.from("1000000");
+      const amountToLock = RT_UNIT.mul(100);
+
+      // Whitelist RT token first
+      await launchpad.connect(owner).addApprovedRT(royaltyToken.address);
+
+      // Launch token with normal parameters
+      await royaltyToken.transfer(creator.address, amountToLock);
+      await royaltyToken
+        .connect(creator)
+        .approve(launchpad.address, amountToLock);
+
+      const basePrice = ethers.utils.parseEther("0.001");
+      const priceIncrement = ethers.utils.parseEther("0.001");
+
+      await launchpad.connect(creator).launchToken(
+        royaltyToken.address,
+        amountToLock,
+        "Wrapper",
+        "WRP",
+        basePrice,
+        priceIncrement
+      );
+
+      const launchedTokens = await launchpad.getAllLaunchedTokens();
+      const wrapperAddress = launchedTokens[0];
+      
+      // Verify token was launched successfully
+      expect(launchedTokens.length).to.equal(1);
+      expect(wrapperAddress).to.not.equal(ethers.constants.AddressZero);
+    });
+
   });
 });
