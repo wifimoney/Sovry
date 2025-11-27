@@ -812,6 +812,10 @@ contract SovryLaunchpad is ReentrancyGuard, Ownable, Pausable {
         }
 
         emit TokensPurchased(msg.sender, wrapperToken, amount, baseCost);
+
+        // HIGH SEVERITY FIX: Check if token should graduate after buy
+        // Graduation should trigger on trading volume, not just on harvest
+        _checkGraduation(wrapperToken);
     }
 
     /**
