@@ -165,10 +165,10 @@ export default function Home() {
   const isLoading = loading || enriching;
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background flex">
       <Navigation />
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+      <main className="flex-1 ml-16 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         <header className="mb-8">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between mb-6">
             <div>

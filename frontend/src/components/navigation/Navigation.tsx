@@ -2,107 +2,103 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState, useEffect } from "react";
 import { useDynamicContext, DynamicWidget } from "@dynamic-labs/sdk-react-core";
-import { Button } from "@/components/ui/button";
-import { Menu, X } from "lucide-react";
+import { Home, PlusCircle, User, Wallet } from "lucide-react";
 
 const NAV_ITEMS = [
-  { label: "Create / Launch", href: "/create" },
-  { label: "Portfolio / Pools", href: "/profile" },
+  { label: "Home", href: "/", icon: Home },
+  { label: "Create", href: "/create", icon: PlusCircle },
 ];
 
 export function Navigation() {
   const pathname = usePathname();
-  const { primaryWallet, setShowAuthFlow } = useDynamicContext();
-  const [scrolled, setScrolled] = useState(false);
-  const [mobileOpen, setMobileOpen] = useState(false);
+  const { primaryWallet } = useDynamicContext();
 
-  useEffect(() => {
-    const handleScroll = () => setScrolled(window.scrollY > 8);
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
+  const getInitials = () => {
+    const addr = primaryWallet?.address;
+    if (!addr || addr.length < 4) return "U";
+    return addr.slice(2, 4).toUpperCase();
+  };
 
-  const toggleMobile = () => setMobileOpen((open) => !open);
-  const closeMobile = () => setMobileOpen(false);
-
-  const renderLink = (item: (typeof NAV_ITEMS)[number], isMobile = false) => {
+  const renderLink = (item: (typeof NAV_ITEMS)[number]) => {
     const isActive = pathname === item.href;
-    const baseClasses = isMobile
-      ? "block px-4 py-3 rounded-xl text-base font-medium"
-      : "px-3 py-2 rounded-lg text-sm font-medium";
-
-    const activeClasses = isActive
-      ? "text-primary bg-primary/10 border border-primary/30"
-      : "text-muted-foreground hover:text-foreground hover:bg-muted/20";
+    const Icon = item.icon;
 
     return (
       <Link
         key={item.href}
         href={item.href}
-        onClick={isMobile ? closeMobile : undefined}
-        className={`${baseClasses} ${activeClasses} transition-all duration-200`}
+        className={`flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-colors ${
+          isActive
+            ? "bg-primary/10 text-primary"
+            : "text-muted-foreground hover:bg-muted/20 hover:text-foreground"
+        }`}
       >
-        {item.label}
+        <Icon className="h-5 w-5 flex-shrink-0" />
+        <span className="whitespace-nowrap text-sm opacity-0 group-hover:opacity-100 hover:opacity-100 transition-opacity duration-200">
+          {item.label}
+        </span>
       </Link>
     );
   };
 
   return (
-    <header
-      className={`sticky top-0 z-50 transition-all duration-300 ${
-        scrolled
-          ? "bg-card/95 border-b border-border/60 shadow-lg shadow-black/30"
-          : "bg-card/80 border-b border-border/20"
-      } backdrop-blur-xl`}
-    >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
-          {/* Logo */}
+    <aside className="fixed left-0 top-0 z-40 flex h-screen w-16 hover:w-64 flex-col bg-card/90 text-foreground shadow-xl border-r border-border/60 transition-[width] duration-200 group">
+      <div className="flex h-full flex-col py-4 w-full">
+        {/* Logo */}
+        <div className="px-3 mb-6">
           <Link href="/" className="flex items-center space-x-3">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-primary via-amber-400 to-primary/80 flex items-center justify-center shadow-inner">
+            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-primary via-amber-400 to-primary/80 flex items-center justify-center shadow-inner flex-shrink-0">
               <span className="text-background font-black text-lg">S</span>
             </div>
-            <div className="flex flex-col">
-              <span className="text-foreground font-semibold leading-tight">Sovry Launchpad</span>
-              <span className="text-xs text-muted-foreground tracking-wide">Story IP Markets</span>
+            <div className="flex flex-col overflow-hidden">
+              <span className="text-foreground font-semibold leading-tight text-sm whitespace-nowrap">
+                Sovry Launchpad
+              </span>
+              <span className="text-[10px] text-muted-foreground tracking-wide whitespace-nowrap">
+                Story IP Markets
+              </span>
             </div>
           </Link>
+        </div>
 
-          {/* Desktop Links */}
-          <nav className="hidden md:flex items-center space-x-2">
-            {NAV_ITEMS.map((item) => renderLink(item))}
-          </nav>
+        {/* Desktop Links */}
+        <nav className="flex-1 space-y-1 px-2">
+          {NAV_ITEMS.map((item) => renderLink(item))}
+        </nav>
 
-          {/* Wallet / CTA */}
-          <div className="flex items-center gap-3">
-            <div className="hidden md:block">
-              <DynamicWidget variant="dropdown" />
-            </div>
-
-            <button
-              className="md:hidden inline-flex items-center justify-center rounded-xl border border-border/60 bg-card/80 p-2 text-muted-foreground hover:text-foreground hover:border-border"
-              onClick={toggleMobile}
-              aria-label="Toggle navigation"
+        {/* Wallet / CTA */}
+        <div className="mt-auto border-t border-border/40 px-3 pt-4 pb-2 flex flex-col gap-3">
+          {primaryWallet && (
+            <Link
+              href="/profile"
+              className="flex items-center gap-3 rounded-xl px-2 py-1 hover:bg-muted/20 transition-colors"
             >
-              {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-            </button>
+              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-primary via-amber-400 to-primary/80 text-xs font-bold text-background flex-shrink-0">
+                {getInitials()}
+              </div>
+              <div className="flex min-w-0 flex-col">
+                <span className="text-xs font-medium opacity-0 group-hover:opacity-100 transition-opacity duration-200">Profile</span>
+                <span className="truncate text-[11px] text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                  {primaryWallet.address?.slice(0, 6)}…{primaryWallet.address?.slice(-4)}
+                </span>
+              </div>
+            </Link>
+          )}
+          <div className="w-full">
+            <div className="w-full overflow-hidden">
+              {/* Collapsed: simple wallet icon button */}
+              <div className="flex items-center justify-center w-10 h-10 rounded-xl border border-border/60 bg-card/80 text-muted-foreground group-hover:hidden">
+                <Wallet className="h-5 w-5" />
+              </div>
+              {/* Expanded: full Dynamic widget, only on hover */}
+              <div className="hidden group-hover:block w-full">
+                <DynamicWidget variant="dropdown" />
+              </div>
+            </div>
           </div>
         </div>
       </div>
-
-      {/* Mobile Drawer */}
-      {mobileOpen && (
-        <div className="md:hidden border-t border-border/40 bg-card/95 backdrop-blur-xl">
-          <div className="px-4 py-4 space-y-3">
-            {NAV_ITEMS.map((item) => renderLink(item, true))}
-            <div onClick={closeMobile}>
-              <DynamicWidget variant="modal" />
-            </div>
-          </div>
-        </div>
-      )}
-    </header>
+    </aside>
   );
 }

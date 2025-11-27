@@ -6,11 +6,13 @@ const path = require('path');
 require('dotenv').config({ path: path.resolve(__dirname, '..', '.env') });
 const storyscanService = require('./services/storyscanService');
 const pricingService = require('./services/pricingService');
+const { runRoyaltyHarvestCycle } = require('./services/royaltyHarvestService');
 
 class SovryWorker {
   constructor() {
     this.isRunning = false;
     this.intervalId = null;
+    this.harvestIntervalId = null;
     this.memoryCache = {
       price: null,
       timestamp: null
@@ -201,6 +203,9 @@ class SovryWorker {
     // Run immediately on start
     console.log('⚡ Running initial IP price update...');
     await this.updateIPPrice();
+
+    console.log('⚡ Running initial royalty harvest cycle...');
+    await runRoyaltyHarvestCycle();
     
     // Then run every 1 minute for real-time swap features
     console.log('⏰ Scheduling background updates every 1 minute for real-time swap...');
@@ -209,6 +214,14 @@ class SovryWorker {
         await this.updateIPPrice();
       }
     }, 60000); // 1 minute = 60,000 ms
+
+    // Schedule royalty harvest cycles (less frequent than price updates)
+    console.log('⏰ Scheduling royalty harvest cycles every 5 minutes...');
+    this.harvestIntervalId = setInterval(async () => {
+      if (this.isRunning) {
+        await runRoyaltyHarvestCycle();
+      }
+    }, 300000); // 5 minutes
 
     console.log('✅ Sovry Backend Worker started successfully');
     console.log('📋 Worker Status:');
@@ -230,6 +243,10 @@ class SovryWorker {
     if (this.intervalId) {
       clearInterval(this.intervalId);
       this.intervalId = null;
+    }
+    if (this.harvestIntervalId) {
+      clearInterval(this.harvestIntervalId);
+      this.harvestIntervalId = null;
     }
     
     console.log('✅ Sovry Backend Worker stopped');

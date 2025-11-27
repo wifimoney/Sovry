@@ -155,6 +155,13 @@ export default function ProfilePage() {
   const { primaryWallet } = useDynamicContext();
   const isConnected = !!primaryWallet;
   const walletAddress = primaryWallet?.address;
+
+  const getInitials = () => {
+    const addr = walletAddress;
+    if (!addr || addr.length < 4) return "U";
+    return addr.slice(2, 4).toUpperCase();
+  };
+
   const searchParams = useSearchParams();
   const initialTab =
     (searchParams.get("tab") as "holdings" | "revenue" | "liquidity") || "holdings";
@@ -274,20 +281,73 @@ export default function ProfilePage() {
     setLiquiditySuccess("");
   };
 
+  const displayAddress =
+    walletAddress && walletAddress.length > 8
+      ? `${walletAddress.slice(0, 6)}…${walletAddress.slice(-4)}`
+      : walletAddress || "Your wallet";
+
+  const netWorth = calculateNetWorth();
+  const totalClaimable = calculateTotalClaimable();
+  const assetCount = assets.length;
+  const poolCount = userPools.length;
+
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background via-background to-background/95">
+    <div className="min-h-screen bg-gradient-to-b from-background via-background to-background/95 flex">
       <Navigation />
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-2">
-            <span className="bg-gradient-to-r from-primary via-primary/80 to-primary bg-clip-text text-transparent">
-              Profile
-            </span>
-          </h1>
-          <p className="text-muted-foreground">
-            Your IP holdings, revenue, and liquidity positions in one place.
-          </p>
-        </div>
+      <main className="flex-1 ml-16 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <section className="mb-10">
+          <div className="h-40 sm:h-48 md:h-56 w-full rounded-3xl bg-gradient-to-r from-purple-700 via-fuchsia-600 to-indigo-700 shadow-lg" />
+          <div className="-mt-12 sm:-mt-16 flex flex-col gap-4 md:flex-row md:items-end md:justify-between px-2 sm:px-4">
+            <div className="flex items-end gap-4">
+              <div className="flex h-20 w-20 md:h-24 md:w-24 items-center justify-center rounded-full bg-gradient-to-br from-primary via-amber-400 to-primary/80 border-4 border-background shadow-xl text-2xl font-bold text-background">
+                {getInitials()}
+              </div>
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center gap-2">
+                  <h1 className="text-2xl sm:text-3xl font-semibold text-foreground">
+                    {displayAddress}
+                  </h1>
+                </div>
+                <div className="flex flex-wrap gap-2 text-[11px] text-muted-foreground">
+                  <span className="px-2 py-1 rounded-full bg-background/40 border border-border/60">
+                    Sovry collector
+                  </span>
+                  <span className="px-2 py-1 rounded-full bg-background/30 border border-border/40">
+                    Story Aeneid Testnet
+                  </span>
+                </div>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs mt-4 md:mt-0">
+              <div className="rounded-2xl bg-background/70 border border-border/60 px-3 py-2">
+                <div className="text-muted-foreground mb-1">Portfolio value</div>
+                <div className="text-sm font-semibold">
+                  {new Intl.NumberFormat("en-US", {
+                    style: "currency",
+                    currency: "USD",
+                  }).format(netWorth)}
+                </div>
+              </div>
+              <div className="rounded-2xl bg-background/70 border border-border/60 px-3 py-2">
+                <div className="text-muted-foreground mb-1">Claimable rewards</div>
+                <div className="text-sm font-semibold text-emerald-400">
+                  {new Intl.NumberFormat("en-US", {
+                    style: "currency",
+                    currency: "USD",
+                  }).format(totalClaimable)}
+                </div>
+              </div>
+              <div className="rounded-2xl bg-background/70 border border-border/60 px-3 py-2">
+                <div className="text-muted-foreground mb-1">IP tokens</div>
+                <div className="text-sm font-semibold">{assetCount}</div>
+              </div>
+              <div className="rounded-2xl bg-background/70 border border-border/60 px-3 py-2">
+                <div className="text-muted-foreground mb-1">Pools</div>
+                <div className="text-sm font-semibold">{poolCount}</div>
+              </div>
+            </div>
+          </div>
+        </section>
 
         <Tabs defaultValue={initialTab} className="space-y-6">
           <TabsList>

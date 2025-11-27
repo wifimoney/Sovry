@@ -320,9 +320,9 @@ export default function CreatePage() {
 
   if (!isConnected) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-background via-background to-background/95">
+      <div className="min-h-screen bg-gradient-to-b from-background via-background to-background/95 flex">
         <Navigation />
-        <main className="container mx-auto px-4 py-8">
+        <main className="flex-1 ml-16 container mx-auto px-4 py-8">
           <div className="max-w-md mx-auto">
             <Card className="glass-card">
               <CardHeader>
@@ -369,9 +369,9 @@ export default function CreatePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background via-background to-background/95">
+    <div className="min-h-screen bg-gradient-to-b from-background via-background to-background/95 flex">
       <Navigation />
-      <main className="container mx-auto px-4 py-12">
+      <main className="flex-1 ml-16 container mx-auto px-4 py-12">
         {/* Hero */}
         <div className="text-center mb-10">
           <div className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-primary/10 to-primary/5 rounded-full mb-4 border border-primary/30">
