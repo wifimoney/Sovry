@@ -1,6 +1,5 @@
 import { expect } from "chai";
 import { ethers } from "hardhat";
-import { loadFixture } from "@nomicfoundation/hardhat-toolbox/network-helpers";
 
 describe("SovryToken", function () {
   async function deployWrapperFixture() {
@@ -13,7 +12,7 @@ describe("SovryToken", function () {
     const wrapper = await SovryToken.deploy(
       "Wrapper",
       "WRP",
-      await underlying.getAddress(),
+      underlying.address,
       owner.address
     );
 
@@ -21,38 +20,39 @@ describe("SovryToken", function () {
   }
 
   it("should allow owner to mint and user to burn", async function () {
-    const { owner, user, wrapper } = await loadFixture(deployWrapperFixture);
+    const { owner, user, wrapper } = await deployWrapperFixture();
 
-    const mintAmount = ethers.parseUnits("100", 18);
+    const mintAmount = ethers.utils.parseUnits("100", 18);
     await wrapper.connect(owner).mint(user.address, mintAmount);
 
     expect(await wrapper.balanceOf(user.address)).to.equal(mintAmount);
 
-    const burnAmount = ethers.parseUnits("40", 18);
+    const burnAmount = ethers.utils.parseUnits("40", 18);
     await wrapper.connect(user).burn(burnAmount);
 
-    expect(await wrapper.balanceOf(user.address)).to.equal(mintAmount - burnAmount);
+    const expectedBalance = mintAmount.sub(burnAmount);
+    expect(await wrapper.balanceOf(user.address)).to.equal(expectedBalance);
   });
 
   it("should deposit and withdraw underlying 1:1", async function () {
-    const { user, underlying, wrapper } = await loadFixture(deployWrapperFixture);
+    const { user, underlying, wrapper } = await deployWrapperFixture();
 
-    const depositAmount = ethers.parseUnits("50", 18);
+    const depositAmount = ethers.utils.parseUnits("50", 18);
 
     // Mint underlying to user and approve wrapper
     await underlying.mint(user.address, depositAmount);
-    await underlying.connect(user).approve(await wrapper.getAddress(), depositAmount);
+    await underlying.connect(user).approve(wrapper.address, depositAmount);
 
     // Deposit underlying and receive wrapper tokens 1:1
     await wrapper.connect(user).deposit(depositAmount);
 
     expect(await wrapper.balanceOf(user.address)).to.equal(depositAmount);
-    expect(await underlying.balanceOf(await wrapper.getAddress())).to.equal(depositAmount);
+    expect(await underlying.balanceOf(wrapper.address)).to.equal(depositAmount);
 
     // Withdraw back underlying by burning wrapper tokens
     await wrapper.connect(user).withdraw(depositAmount);
 
-    expect(await wrapper.balanceOf(user.address)).to.equal(0n);
-    expect(await underlying.balanceOf(await wrapper.getAddress())).to.equal(0n);
+    expect(await wrapper.balanceOf(user.address)).to.equal(ethers.constants.Zero);
+    expect(await underlying.balanceOf(wrapper.address)).to.equal(ethers.constants.Zero);
   });
 });

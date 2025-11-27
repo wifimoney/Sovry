@@ -21,6 +21,8 @@ contract SovryToken is ERC20, ERC20Burnable, Ownable, ReentrancyGuard {
     /// @notice The underlying token that this contract wraps (can be address(0) if not used as wrapper)
     IERC20 public immutable underlyingToken;
 
+    bool public publicWrappingEnabled;
+
     /// @notice Event emitted when tokens are minted
     /// @param to The address that received the minted tokens
     /// @param amount The amount of tokens minted
@@ -58,6 +60,13 @@ contract SovryToken is ERC20, ERC20Burnable, Ownable, ReentrancyGuard {
         address _initialOwner
     ) ERC20(_name, _symbol) Ownable(_initialOwner) {
         underlyingToken = IERC20(_underlyingToken);
+        if (_underlyingToken != address(0)) {
+            publicWrappingEnabled = true;
+        }
+    }
+
+    function decimals() public pure override returns (uint8) {
+        return 6;
     }
 
     /**
@@ -103,6 +112,10 @@ contract SovryToken is ERC20, ERC20Burnable, Ownable, ReentrancyGuard {
         emit TokensBurned(from, amount);
     }
 
+    function setPublicWrapping(bool enabled) external onlyOwner {
+        publicWrappingEnabled = enabled;
+    }
+
     /**
      * @notice Deposits underlying tokens and mints wrapper tokens 1:1
      * @param amount The amount of underlying tokens to deposit
@@ -114,6 +127,7 @@ contract SovryToken is ERC20, ERC20Burnable, Ownable, ReentrancyGuard {
     function deposit(uint256 amount) external nonReentrant {
         require(address(underlyingToken) != address(0), "SovryToken: not configured as wrapper");
         require(amount > 0, "SovryToken: amount must be greater than zero");
+        require(publicWrappingEnabled, "SovryToken: public wrapping disabled");
         
         // Transfer underlying tokens from caller to this contract
         underlyingToken.safeTransferFrom(msg.sender, address(this), amount);

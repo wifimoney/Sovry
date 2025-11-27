@@ -42,6 +42,14 @@ interface IPiperXRouter {
         address to,
         uint256 deadline
     ) external payable returns (uint256[] memory amounts);
+
+    function factory() external view returns (address);
+
+    function WETH() external view returns (address);
+}
+
+interface IPiperXFactory {
+    function getPair(address tokenA, address tokenB) external view returns (address pair);
 }
 
 /**
@@ -78,6 +86,29 @@ contract SovryLaunchpad is ReentrancyGuard, Ownable, Pausable {
     /// @notice Basis points denominator (10000 = 100%)
     uint256 public constant BPS_DENOMINATOR = 10000;
 
+    /// @notice RT decimals (Story Royalty Tokens use 6 decimals)
+    uint8 public constant RT_DECIMALS = 6;
+
+    /// @notice RT unit in smallest units
+    uint256 public constant RT_UNIT = 10 ** RT_DECIMALS;
+
+    /// @notice Wrapper token decimals (SovryToken uses 6 decimals)
+    uint8 public constant WRAPPER_DECIMALS = 6;
+
+    /// @notice One whole wrapper token in smallest units
+    uint256 public constant WRAP_UNIT = 10 ** WRAPPER_DECIMALS;
+
+    /// @notice Wrapper smallest units minted per 1 RT smallest unit (UI-level 1:1,000,000 ratio per RT)
+    uint256 public constant WRAP_PER_RT = 1_000_000;
+
+    /// @notice Safety cap for basePrice to keep bonding curve math well below uint256 overflow bounds
+    /// @dev 1e30 wei is far above any realistic on-chain unit price
+    uint256 public constant MAX_BASE_PRICE = 1e30;
+
+    /// @notice Safety cap for priceIncrement to keep quadratic term bounded
+    /// @dev 1e30 wei per RT unit still leaves a very large headroom before overflow
+    uint256 public constant MAX_PRICE_INCREMENT = 1e30;
+
     /// @notice Default graduation threshold in wei (e.g., $69,000 worth of native token)
     uint256 public graduationThreshold;
 
@@ -89,6 +120,12 @@ contract SovryLaunchpad is ReentrancyGuard, Ownable, Pausable {
 
     /// @notice WIP token address (native token on Story Protocol)
     address public wipToken;
+
+    /// @notice Burn address used for LP tokens and buyback-and-burn flows
+    address public constant BURN_ADDRESS = address(0x000000000000000000000000000000000000dEaD);
+
+    /// @notice Minimum share of token/native liquidity (in basis points) that must be added during DEX migration
+    uint256 public constant DEX_LP_MIN_BPS = 9500;
 
     /**
      * @notice Bonding curve structure for each launched token
@@ -112,11 +149,12 @@ contract SovryLaunchpad is ReentrancyGuard, Ownable, Pausable {
      * @param wrapperAddress Address of the wrapper token (SovryToken)
      * @param creator Address that launched the token
      * @param launchTime Timestamp when the token was launched
-     * @param totalLocked Total amount of RT locked in the vault
+     * @param totalLocked Total amount of RT locked in the vault (RT smallest units)
      * @param graduated Whether the token has graduated to DEX
      * @param totalRoyaltiesHarvested Total royalties harvested for this token
      * @param vaultAddress Address of the vault holding locked RT (this contract)
-     * @param dexReserve Reserve amount for DEX liquidity
+     * @param dexReserve Reserve amount for DEX liquidity in RT smallest units
+     * @param initialCurveSupply Initial wrapper token supply assigned to the bonding curve (wrapper smallest units)
      */
     struct LaunchedToken {
         address rtAddress;
@@ -128,6 +166,7 @@ contract SovryLaunchpad is ReentrancyGuard, Ownable, Pausable {
         uint256 totalRoyaltiesHarvested;
         address vaultAddress;
         uint256 dexReserve;
+        uint256 initialCurveSupply;
     }
 
     /// @notice Mapping from wrapper token address to bonding curve data
@@ -148,8 +187,17 @@ contract SovryLaunchpad is ReentrancyGuard, Ownable, Pausable {
     /// @notice Mapping from wrapper token to graduation status
     mapping(address => bool) public isGraduated;
 
+    /// @notice Pending WIP/native amounts earmarked for buyback when swaps are not currently possible
+    mapping(address => uint256) public pendingBuybacks;
+
+    /// @notice Optional designated harvester per wrapper token
+    mapping(address => address) public tokenHarvesters;
+
     /// @notice Array of all launched wrapper token addresses
     address[] public allLaunchedTokens;
+
+    /// @notice Total native reserves held by all bonding curves
+    uint256 public totalCurveReserves;
 
     /// @notice Event emitted when a token is launched
     /// @param rt Address of the royalty token
@@ -207,6 +255,11 @@ contract SovryLaunchpad is ReentrancyGuard, Ownable, Pausable {
         uint256 wrapperBurned
     );
 
+    /// @notice Event emitted when a buyback attempt fails or cannot be executed safely
+    /// @param wrapperToken Address of the wrapper token
+    /// @param wipAmount Amount of WIP/native that remains pending for future buyback
+    event BuybackFailed(address indexed wrapperToken, uint256 wipAmount);
+
     /// @notice Event emitted when floor price is updated after royalty injection
     /// @param wrapperToken Address of the wrapper token
     /// @param newFloor New floor price
@@ -252,6 +305,23 @@ contract SovryLaunchpad is ReentrancyGuard, Ownable, Pausable {
         address indexed user,
         uint256 amount
     );
+
+    /// @notice Event emitted when the global graduation threshold is updated
+    /// @param newThreshold New graduation threshold value in wei
+    event GraduationThresholdUpdated(uint256 newThreshold);
+
+    /// @notice Event emitted when the PiperX router address is updated
+    /// @param newRouter New PiperX router address
+    event PiperXRouterUpdated(address newRouter);
+
+    /// @notice Event emitted when the treasury address is updated
+    /// @param newTreasury New treasury address
+    event TreasuryUpdated(address newTreasury);
+
+    /// @notice Event emitted when a harvester is set or updated for a wrapper token
+    /// @param wrapperToken Address of the wrapper token
+    /// @param harvester Address authorized to harvest for this token (can be zero address to clear)
+    event HarvesterUpdated(address indexed wrapperToken, address harvester);
 
     /**
      * @notice Constructor initializes the launchpad
@@ -306,8 +376,8 @@ contract SovryLaunchpad is ReentrancyGuard, Ownable, Pausable {
     ) external nonReentrant whenNotPaused {
         require(rtAddress != address(0), "Invalid RT address");
         require(amount > 0, "Amount must be greater than zero");
-        require(basePrice > 0, "Base price must be greater than zero");
-        require(priceIncrement > 0, "Price increment must be greater than zero");
+        require(basePrice > 0 && basePrice <= MAX_BASE_PRICE, "Invalid basePrice");
+        require(priceIncrement > 0 && priceIncrement <= MAX_PRICE_INCREMENT, "Invalid priceIncrement");
         require(rtToWrapper[rtAddress] == address(0), "Token already launched");
 
         IERC20 rt = IERC20(rtAddress);
@@ -322,28 +392,32 @@ contract SovryLaunchpad is ReentrancyGuard, Ownable, Pausable {
 
         // Deploy wrapper token with this contract as owner (for minting)
         SovryToken wrapper = new SovryToken(name, symbol, rtAddress, address(this));
+        // Disable public deposit-based wrapping for launchpad-managed wrappers
+        wrapper.setPublicWrapping(false);
         address wrapperAddress = address(wrapper);
 
-        // Mint wrapper tokens 1:1 with locked RT to this contract
-        // These will be sold through the bonding curve
-        wrapper.mint(address(this), amount);
+        // Mint wrapper tokens with a 1:WRAP_PER_RT ratio per RT smallest unit locked
+        uint256 totalWrapped = amount * WRAP_PER_RT;
+        wrapper.mint(address(this), totalWrapped);
 
-        // Creator premine: a small allocation of tokens for the creator (5% of total locked)
-        uint256 premineAmount = (amount * CREATOR_PREMINE_BPS) / BPS_DENOMINATOR;
-        if (premineAmount > 0) {
-            IERC20(wrapperAddress).safeTransfer(msg.sender, premineAmount);
+        // Creator premine in RT units (5% of total locked)
+        uint256 premineRt = (amount * CREATOR_PREMINE_BPS) / BPS_DENOMINATOR;
+        uint256 premineWrapped = premineRt * WRAP_PER_RT;
+        if (premineWrapped > 0) {
+            IERC20(wrapperAddress).safeTransfer(msg.sender, premineWrapped);
         }
 
-        // Split remaining supply: keep 20% reserved for DEX liquidity at graduation,
+        // Split remaining supply in RT units: keep 20% reserved for DEX liquidity at graduation,
         // and use the rest for the bonding curve after accounting for the premine.
-        uint256 dexReserve = (amount * 20) / 100;
-        uint256 curveSupply = amount - dexReserve - premineAmount;
+        uint256 dexReserveRt = (amount * 20) / 100;
+        uint256 curveSupplyRt = amount - dexReserveRt - premineRt;
 
-        // Initialize bonding curve
+        // Initialize bonding curve in wrapper units (wrapper smallest units)
+        uint256 curveSupplyWrapped = curveSupplyRt * WRAP_PER_RT;
         bondingCurves[wrapperAddress] = BondingCurve({
             basePrice: basePrice,
             priceIncrement: priceIncrement,
-            currentSupply: curveSupply,
+            currentSupply: curveSupplyWrapped,
             reserveBalance: 0,
             isActive: true
         });
@@ -358,7 +432,8 @@ contract SovryLaunchpad is ReentrancyGuard, Ownable, Pausable {
             graduated: false,
             totalRoyaltiesHarvested: 0,
             vaultAddress: address(this),
-            dexReserve: dexReserve
+            dexReserve: dexReserveRt,
+            initialCurveSupply: curveSupplyWrapped
         });
 
         // Update mappings
@@ -371,10 +446,103 @@ contract SovryLaunchpad is ReentrancyGuard, Ownable, Pausable {
     }
 
     /**
+     * @notice Launches a new token using RT that has already been transferred to this contract
+     * @param rtAddress Address of the Royalty Token to lock
+     * @param amount Amount of RT to lock
+     * @param name Name for the wrapper token
+     * @param symbol Symbol for the wrapper token
+     * @param basePrice Base price for the bonding curve (in wei)
+     * @param priceIncrement Price increment per token unit (in wei)
+     * @dev This variant is intended for tokens like Story RT that users may transfer manually
+     *      via wallets (e.g., MetaMask). It does NOT call transferFrom, and instead assumes the
+     *      caller has already prefunded this contract with exactly the desired amount.
+     * @dev Preserves the 10% minimum listing requirement by reconstructing the user's effective
+     *      balance as their current balance plus the prefunded amount held by this contract.
+     * @dev Security properties (RT locked in vault, 75/20/5 split, anti-rug emergencyWithdraw)
+     *      remain the same as in launchToken.
+     */
+    function launchTokenPrefunded(
+        address rtAddress,
+        uint256 amount,
+        string calldata name,
+        string calldata symbol,
+        uint256 basePrice,
+        uint256 priceIncrement
+    ) external nonReentrant whenNotPaused {
+        require(rtAddress != address(0), "Invalid RT address");
+        require(amount > 0, "Amount must be greater than zero");
+        require(basePrice > 0, "Base price must be greater than zero");
+        require(priceIncrement > 0, "Price increment must be greater than zero");
+        require(rtToWrapper[rtAddress] == address(0), "Token already launched");
+
+        IERC20 rt = IERC20(rtAddress);
+
+        // Prefunded balance for this RT held by the launchpad
+        uint256 contractBalance = rt.balanceOf(address(this));
+        require(contractBalance >= amount, "Insufficient prefunded balance");
+
+        // Reconstruct user's effective balance as current wallet + prefunded amount,
+        // under the assumption that the prefunding came from this caller.
+        uint256 userBalanceNow = rt.balanceOf(msg.sender);
+        uint256 effectiveBalance = userBalanceNow + amount;
+
+        // Enforce the same 10% minimum listing requirement as launchToken
+        require(amount >= (effectiveBalance * MIN_LISTING_PERCENT) / 100, "Minimum 10% required");
+
+        // From here, logic mirrors launchToken: we treat 'amount' as totalLocked RT.
+
+        SovryToken wrapper = new SovryToken(name, symbol, rtAddress, address(this));
+        address wrapperAddress = address(wrapper);
+
+        // Mint wrapper tokens with a 1:WRAP_PER_RT ratio per RT smallest unit locked
+        uint256 totalWrapped = amount * WRAP_PER_RT;
+        wrapper.mint(address(this), totalWrapped);
+
+        uint256 premineRt = (amount * CREATOR_PREMINE_BPS) / BPS_DENOMINATOR;
+        uint256 premineWrapped = premineRt * WRAP_PER_RT;
+        if (premineWrapped > 0) {
+            IERC20(wrapperAddress).safeTransfer(msg.sender, premineWrapped);
+        }
+
+        uint256 dexReserveRt = (amount * 20) / 100;
+        uint256 curveSupplyRt = amount - dexReserveRt - premineRt;
+
+        uint256 curveSupplyWrapped = curveSupplyRt * WRAP_PER_RT;
+        bondingCurves[wrapperAddress] = BondingCurve({
+            basePrice: basePrice,
+            priceIncrement: priceIncrement,
+            currentSupply: curveSupplyWrapped,
+            reserveBalance: 0,
+            isActive: true
+        });
+
+        launchedTokens[wrapperAddress] = LaunchedToken({
+            rtAddress: rtAddress,
+            wrapperAddress: wrapperAddress,
+            creator: msg.sender,
+            launchTime: block.timestamp,
+            totalLocked: amount,
+            graduated: false,
+            totalRoyaltiesHarvested: 0,
+            vaultAddress: address(this),
+            dexReserve: dexReserveRt,
+            initialCurveSupply: curveSupplyWrapped
+        });
+
+        rtToWrapper[rtAddress] = wrapperAddress;
+        wrapperToRt[wrapperAddress] = rtAddress;
+        userLockedAmounts[msg.sender][wrapperAddress] = amount;
+        allLaunchedTokens.push(wrapperAddress);
+
+        emit TokenLaunched(rtAddress, wrapperAddress, msg.sender, amount, block.timestamp);
+    }
+
+    /**
      * @notice Purchases wrapper tokens from the bonding curve
      * @param wrapperToken Address of the wrapper token to purchase
-     * @param amount Amount of wrapper tokens to purchase
+     * @param amount Amount of wrapper tokens to purchase (must be a multiple of WRAP_UNIT)
      * @param maxEthCost Maximum ETH cost (slippage protection)
+     * @param deadline Deadline for the transaction
      * @dev Price increases linearly with supply: price = basePrice + (supply * increment)
      * @dev Calculates total cost including fees
      * @dev Updates bonding curve state
@@ -382,20 +550,25 @@ contract SovryLaunchpad is ReentrancyGuard, Ownable, Pausable {
     function buy(
         address wrapperToken,
         uint256 amount,
-        uint256 maxEthCost
+        uint256 maxEthCost,
+        uint256 deadline
     ) external payable nonReentrant whenNotPaused {
         require(wrapperToken != address(0), "Invalid wrapper token");
         require(amount > 0, "Amount must be greater than zero");
         require(msg.value > 0, "Must send native token");
+        require(block.timestamp <= deadline, "Transaction expired");
 
         BondingCurve storage curve = bondingCurves[wrapperToken];
         LaunchedToken storage token = launchedTokens[wrapperToken];
 
         require(curve.isActive, "Curve not active");
         require(!token.graduated, "Token already graduated");
+
+        // Normalize to whole-wrapper units for bonding curve math
+        require(amount % WRAP_UNIT == 0, "Invalid amount step");
         require(curve.currentSupply >= amount, "Insufficient supply");
 
-        // Calculate base cost (before trading fees) using linear bonding curve formula
+        // Calculate base cost (before trading fees) using linear bonding curve formula in wrapper units
         uint256 baseCost = calculateBuyPrice(wrapperToken, amount);
 
         // Trading fee (1% of baseCost), split between creator and protocol
@@ -409,9 +582,10 @@ contract SovryLaunchpad is ReentrancyGuard, Ownable, Pausable {
         require(totalCost <= maxEthCost, "Slippage: totalCost > maxEthCost");
         require(msg.value >= totalCost, "Insufficient payment");
 
-        // Update bonding curve state
+        // Update bonding curve state in wrapper units
         curve.currentSupply -= amount;
         curve.reserveBalance += baseCost;
+        totalCurveReserves += baseCost;
 
         // Transfer wrapper tokens to buyer
         IERC20(wrapperToken).safeTransfer(msg.sender, amount);
@@ -437,19 +611,14 @@ contract SovryLaunchpad is ReentrancyGuard, Ownable, Pausable {
         }
 
         emit TokensPurchased(msg.sender, wrapperToken, amount, baseCost);
-
-        // Check graduation condition
-        uint256 marketCap = getMarketCap(wrapperToken);
-        if (marketCap >= graduationThreshold && !token.graduated) {
-            _graduate(wrapperToken);
-        }
     }
 
     /**
      * @notice Sells wrapper tokens back to the bonding curve
      * @param wrapperToken Address of the wrapper token to sell
-     * @param amount Amount of wrapper tokens to sell
+     * @param amount Amount of wrapper tokens to sell (must be a multiple of WRAP_UNIT)
      * @param minEthProceeds Minimum ETH proceeds (slippage protection)
+     * @param deadline Deadline for the transaction
      * @dev Price decreases linearly with supply
      * @dev Calculates proceeds after fees
      * @dev Updates bonding curve state
@@ -457,10 +626,12 @@ contract SovryLaunchpad is ReentrancyGuard, Ownable, Pausable {
     function sell(
         address wrapperToken,
         uint256 amount,
-        uint256 minEthProceeds
+        uint256 minEthProceeds,
+        uint256 deadline
     ) external nonReentrant whenNotPaused {
         require(wrapperToken != address(0), "Invalid wrapper token");
         require(amount > 0, "Amount must be greater than zero");
+        require(block.timestamp <= deadline, "Transaction expired");
 
         BondingCurve storage curve = bondingCurves[wrapperToken];
         LaunchedToken storage token = launchedTokens[wrapperToken];
@@ -471,7 +642,10 @@ contract SovryLaunchpad is ReentrancyGuard, Ownable, Pausable {
         // Transfer wrapper tokens from seller
         IERC20(wrapperToken).safeTransferFrom(msg.sender, address(this), amount);
 
-        // Calculate base proceeds (before trading fees) using linear bonding curve formula
+        // Normalize to whole-wrapper units for bonding curve math
+        require(amount % WRAP_UNIT == 0, "Invalid amount step");
+
+        // Calculate base proceeds (before trading fees) using linear bonding curve formula in wrapper units
         uint256 baseProceeds = calculateSellPrice(wrapperToken, amount);
         require(address(this).balance >= baseProceeds, "Insufficient reserves");
 
@@ -485,9 +659,10 @@ contract SovryLaunchpad is ReentrancyGuard, Ownable, Pausable {
         // Slippage protection: user sets minimum ETH/IP they are willing to receive
         require(netProceeds >= minEthProceeds, "Slippage: netProceeds < minEthProceeds");
 
-        // Update bonding curve state
+        // Update bonding curve state in wrapper units
         curve.currentSupply += amount;
         curve.reserveBalance -= baseProceeds;
+        totalCurveReserves -= baseProceeds;
 
         // Send proceeds to seller
         (bool success, ) = payable(msg.sender).call{value: netProceeds}("");
@@ -528,9 +703,18 @@ contract SovryLaunchpad is ReentrancyGuard, Ownable, Pausable {
         address[] calldata currencyTokens
     ) external nonReentrant whenNotPaused {
         require(wrapperToken != address(0), "Invalid wrapper token");
-
         LaunchedToken storage token = launchedTokens[wrapperToken];
-        require(token.wrapperAddress != address(0), "Token not launched");
+        require(token.wrapperAddress != address(0), "Unknown wrapper token");
+
+        // Only the token creator, an optionally designated harvester, or the protocol owner
+        // may trigger royalty harvesting and pumping to avoid griefing and front-running.
+        address harvester = tokenHarvesters[wrapperToken];
+        require(
+            msg.sender == token.creator ||
+                msg.sender == harvester ||
+                msg.sender == owner(),
+            "Not authorized to harvest"
+        );
 
         BondingCurve storage curve = bondingCurves[wrapperToken];
 
@@ -557,14 +741,19 @@ contract SovryLaunchpad is ReentrancyGuard, Ownable, Pausable {
         // If the token is still on the bonding curve, keep pumping the reserve as before
         if (!token.graduated && curve.isActive) {
             curve.reserveBalance += claimedAmount;
-            uint256 initialCurveSupply = token.totalLocked - token.dexReserve;
-            uint256 sold = initialCurveSupply > curve.currentSupply
+            totalCurveReserves += claimedAmount;
+
+            uint256 initialCurveSupply = token.initialCurveSupply;
+            uint256 soldRaw = initialCurveSupply > curve.currentSupply
                 ? (initialCurveSupply - curve.currentSupply)
                 : 0;
 
+            // Normalize sold to whole-wrapper units for pricing
+            uint256 soldUnits = soldRaw / WRAP_UNIT;
+
             emit FloorPriceUpdated(
                 wrapperToken,
-                curve.basePrice + (sold * curve.priceIncrement)
+                curve.basePrice + (soldUnits * curve.priceIncrement)
             );
 
             // Check graduation after pump
@@ -581,25 +770,47 @@ contract SovryLaunchpad is ReentrancyGuard, Ownable, Pausable {
 
     function _buybackAndBurn(address wrapperToken, uint256 wipAmount) internal {
         require(piperXRouter != address(0), "PiperX router not set");
-        require(wipAmount > 0, "No WIP to spend");
+
+        // Aggregate freshly claimed royalties with any previously pending buyback amount
+        uint256 totalToSpend = wipAmount + pendingBuybacks[wrapperToken];
+        require(totalToSpend > 0, "No WIP to spend");
+
+        IPiperXRouter router = IPiperXRouter(piperXRouter);
+
+        // Ensure there is a DEX pool before attempting a swap; if not, keep funds pending
+        address factory = router.factory();
+        address pair = IPiperXFactory(factory).getPair(wipToken, wrapperToken);
+
+        if (pair == address(0)) {
+            pendingBuybacks[wrapperToken] = totalToSpend;
+            emit BuybackFailed(wrapperToken, totalToSpend);
+            return;
+        }
 
         address[] memory path = new address[](2);
         path[0] = wipToken;
         path[1] = wrapperToken;
 
-        address burnAddress = address(0x000000000000000000000000000000000000dEaD);
+        address burnAddress = BURN_ADDRESS;
 
-        uint256[] memory amounts = IPiperXRouter(piperXRouter).swapExactETHForTokens{
-            value: wipAmount
-        }(
-            1, // Allow minimal amount out; slippage is handled off-chain or by router config
-            path,
-            burnAddress,
-            block.timestamp + 600
-        );
+        // Clear pending amount optimistically; if the swap fails we will restore it
+        pendingBuybacks[wrapperToken] = 0;
 
-        uint256 wrapperBought = amounts[amounts.length - 1];
-        emit BuybackAndBurn(wrapperToken, wipAmount, wrapperBought);
+        try
+            router.swapExactETHForTokens{value: totalToSpend}(
+                1, // Minimal amount out; additional slippage controls can be handled off-chain
+                path,
+                burnAddress,
+                block.timestamp + 300 // Shorter deadline to reduce MEV window
+            )
+        returns (uint256[] memory amounts) {
+            uint256 wrapperBought = amounts[amounts.length - 1];
+            emit BuybackAndBurn(wrapperToken, totalToSpend, wrapperBought);
+        } catch {
+            // If the swap cannot be executed (e.g., low liquidity, price movement), keep funds pending
+            pendingBuybacks[wrapperToken] = totalToSpend;
+            emit BuybackFailed(wrapperToken, totalToSpend);
+        }
     }
 
     /**
@@ -624,30 +835,41 @@ contract SovryLaunchpad is ReentrancyGuard, Ownable, Pausable {
         // Get all available liquidity
         // Native side: all ETH accumulated in the bonding curve reserve
         uint256 nativeLiquidity = curve.reserveBalance;
+        if (nativeLiquidity > 0) {
+            totalCurveReserves -= nativeLiquidity;
+            curve.reserveBalance = 0;
+        }
 
-        // Token side: 80/20 split -> use reserved DEX allocation + any remaining
-        // unsold bonding-curve inventory (currentSupply).
-        uint256 tokenLiquidity = token.dexReserve + curve.currentSupply;
+        // Token side: use reserved DEX allocation (in RT) plus any remaining
+        // unsold bonding-curve inventory (currentSupply in wrapper units).
+        uint256 dexReserveWrapped = token.dexReserve * WRAP_PER_RT;
+        uint256 tokenLiquidity = dexReserveWrapped + curve.currentSupply;
 
         require(nativeLiquidity > 0 && tokenLiquidity > 0, "No liquidity to migrate");
 
-        // Approve router to spend tokens
+        // Compute minimum acceptable amounts to add, to protect against extreme slippage during migration
+        uint256 minTokenLiquidity = (tokenLiquidity * DEX_LP_MIN_BPS) / BPS_DENOMINATOR;
+        uint256 minNativeLiquidity = (nativeLiquidity * DEX_LP_MIN_BPS) / BPS_DENOMINATOR;
+
+        // Approve router to pull wrapper tokens
         IERC20(wrapperToken).forceApprove(piperXRouter, tokenLiquidity);
 
         // Add liquidity to PiperX V2 Router
         // LP tokens are sent to burn address to lock liquidity permanently
-        IPiperXRouter(piperXRouter).addLiquidityETH{value: nativeLiquidity}(
+        IPiperXRouter router = IPiperXRouter(piperXRouter);
+
+        router.addLiquidityETH{value: nativeLiquidity}(
             wrapperToken,
             tokenLiquidity,
-            1, // minToken (slippage tolerance)
-            1, // minETH (slippage tolerance)
-            address(0x000000000000000000000000000000000000dEaD), // Burn LP tokens
-            block.timestamp + 600
+            minTokenLiquidity,
+            minNativeLiquidity,
+            BURN_ADDRESS, // Burn LP tokens
+            block.timestamp + 300
         );
 
-        // Note: Pool address would need to be retrieved from router or factory
-        // For now, we use address(0) as placeholder
-        address poolAddress = address(0);
+        address factory = router.factory();
+        address weth = router.WETH();
+        address poolAddress = IPiperXFactory(factory).getPair(wrapperToken, weth);
 
         emit Graduated(wrapperToken, nativeLiquidity, poolAddress);
     }
@@ -666,21 +888,29 @@ contract SovryLaunchpad is ReentrancyGuard, Ownable, Pausable {
     ) public view returns (uint256) {
         BondingCurve memory curve = bondingCurves[wrapperToken];
         require(curve.isActive, "Curve not active");
+        require(amount > 0, "Amount must be greater than zero");
         require(curve.currentSupply >= amount, "Insufficient supply");
+        require(amount % WRAP_UNIT == 0, "Invalid amount step");
 
-        // Compute circulating supply (tokens sold) from totalLocked and dexReserve
+        // Compute circulating supply (tokens sold) in wrapper units
         LaunchedToken memory token = launchedTokens[wrapperToken];
-        uint256 initialCurveSupply = token.totalLocked - token.dexReserve;
-        uint256 sold = initialCurveSupply - curve.currentSupply;
+        uint256 initialCurveSupply = token.initialCurveSupply;
+        uint256 soldRaw = initialCurveSupply > curve.currentSupply
+            ? (initialCurveSupply - curve.currentSupply)
+            : 0;
 
-        // Linear bonding curve based on sold tokens:
+        // Normalize to whole-wrapper units for pricing math
+        uint256 soldUnits = soldRaw / WRAP_UNIT;
+        uint256 amountUnits = amount / WRAP_UNIT;
+
+        // Linear bonding curve based on soldUnits:
         // price(sold) = basePrice + (sold * increment)
-        // Cost for buying `amount` = basePrice * amount
-        //   + priceIncrement * (sold * amount + amount^2 / 2)
-        uint256 baseCost = curve.basePrice * amount;
+        // Cost for buying `amountUnits` = basePrice * amountUnits
+        //   + priceIncrement * (soldUnits * amountUnits + amountUnits^2 / 2)
+        uint256 baseCost = curve.basePrice * amountUnits;
         uint256 incrementCost =
-            (curve.priceIncrement * sold * amount) +
-            (curve.priceIncrement * amount * amount) / 2;
+            (curve.priceIncrement * soldUnits * amountUnits) +
+            (curve.priceIncrement * amountUnits * amountUnits) / 2;
 
         // Return raw bonding-curve cost before trading fees are applied
         return baseCost + incrementCost;
@@ -700,22 +930,30 @@ contract SovryLaunchpad is ReentrancyGuard, Ownable, Pausable {
     ) public view returns (uint256) {
         BondingCurve memory curve = bondingCurves[wrapperToken];
         require(curve.isActive, "Curve not active");
+        require(amount > 0, "Amount must be greater than zero");
+        require(amount % WRAP_UNIT == 0, "Invalid amount step");
 
-        // Compute circulating supply (tokens sold)
+        // Compute circulating supply (tokens sold) in wrapper units
         LaunchedToken memory token = launchedTokens[wrapperToken];
-        uint256 initialCurveSupply = token.totalLocked - token.dexReserve;
-        uint256 sold = initialCurveSupply - curve.currentSupply;
+        uint256 initialCurveSupply = token.initialCurveSupply;
+        uint256 soldRaw = initialCurveSupply > curve.currentSupply
+            ? (initialCurveSupply - curve.currentSupply)
+            : 0;
 
-        require(sold >= amount, "Insufficient circulating supply");
+        require(soldRaw >= amount, "Insufficient circulating supply");
 
-        // Linear bonding curve based on sold tokens:
+        // Normalize to whole-wrapper units
+        uint256 soldUnits = soldRaw / WRAP_UNIT;
+        uint256 amountUnits = amount / WRAP_UNIT;
+
+        // Linear bonding curve based on soldUnits:
         // price(sold) = basePrice + (sold * increment)
-        // Proceeds for selling `amount` = basePrice * amount
-        //   + priceIncrement * (sold * amount - amount^2 / 2)
-        uint256 baseProceeds = curve.basePrice * amount;
+        // Proceeds for selling `amountUnits` = basePrice * amountUnits
+        //   + priceIncrement * (soldUnits * amountUnits - amountUnits^2 / 2)
+        uint256 baseProceeds = curve.basePrice * amountUnits;
         uint256 incrementProceeds =
-            (curve.priceIncrement * sold * amount) -
-            (curve.priceIncrement * amount * amount) / 2;
+            (curve.priceIncrement * soldUnits * amountUnits) -
+            (curve.priceIncrement * amountUnits * amountUnits) / 2;
 
         return baseProceeds + incrementProceeds;
     }
@@ -730,19 +968,22 @@ contract SovryLaunchpad is ReentrancyGuard, Ownable, Pausable {
         BondingCurve memory curve = bondingCurves[wrapperToken];
         if (!curve.isActive) return 0;
 
-        // Total supply = original supply (from launchedTokens)
         LaunchedToken memory token = launchedTokens[wrapperToken];
-        uint256 totalSupply = token.totalLocked;
 
-        // Current price based on circulating supply (tokens sold)
-        uint256 initialCurveSupply = token.totalLocked - token.dexReserve;
-        uint256 sold = initialCurveSupply > curve.currentSupply
+        // Total wrapper supply in whole-wrapper units
+        uint256 totalWrapped = token.totalLocked * WRAP_PER_RT;
+        uint256 totalSupplyUnits = totalWrapped / WRAP_UNIT;
+
+        // Current price based on circulating supply (tokens sold) in whole-wrapper units
+        uint256 initialCurveSupply = token.initialCurveSupply;
+        uint256 soldRaw = initialCurveSupply > curve.currentSupply
             ? (initialCurveSupply - curve.currentSupply)
             : 0;
+        uint256 soldUnits = soldRaw / WRAP_UNIT;
 
-        uint256 currentPrice = curve.basePrice + (sold * curve.priceIncrement);
+        uint256 currentPrice = curve.basePrice + (soldUnits * curve.priceIncrement);
 
-        return currentPrice * totalSupply;
+        return currentPrice * totalSupplyUnits;
     }
 
     /**
@@ -776,12 +1017,14 @@ contract SovryLaunchpad is ReentrancyGuard, Ownable, Pausable {
         BondingCurve memory curve = bondingCurves[wrapperToken];
         if (!curve.isActive) return 0;
         LaunchedToken memory token = launchedTokens[wrapperToken];
-        uint256 initialCurveSupply = token.totalLocked - token.dexReserve;
-        uint256 sold = initialCurveSupply > curve.currentSupply
+        uint256 initialCurveSupply = token.initialCurveSupply;
+        uint256 soldRaw = initialCurveSupply > curve.currentSupply
             ? (initialCurveSupply - curve.currentSupply)
             : 0;
 
-        return curve.basePrice + (sold * curve.priceIncrement);
+        uint256 soldUnits = soldRaw / WRAP_UNIT;
+
+        return curve.basePrice + (soldUnits * curve.priceIncrement);
     }
 
     /**
@@ -829,16 +1072,18 @@ contract SovryLaunchpad is ReentrancyGuard, Ownable, Pausable {
         require(to != address(0), "Invalid recipient");
 
         if (token == address(0)) {
-            // Withdraw native token
-            // Disallow withdrawing native liquidity while any bonding curve is still active
-            for (uint256 i = 0; i < allLaunchedTokens.length; i++) {
-                address wrapper = allLaunchedTokens[i];
-                if (bondingCurves[wrapper].isActive) {
-                    revert("Cannot withdraw native liquidity while curves active");
-                }
-            }
+            // Withdraw native token, but never touch bonding curve reserves
+            require(
+                address(this).balance >= totalCurveReserves,
+                "Inconsistent reserves"
+            );
 
-            uint256 withdrawAmount = amount == 0 ? address(this).balance : amount;
+            uint256 freeBalance = address(this).balance - totalCurveReserves;
+            require(freeBalance > 0, "No free native balance");
+
+            uint256 withdrawAmount = amount == 0 ? freeBalance : amount;
+            require(withdrawAmount <= freeBalance, "Amount exceeds free balance");
+
             (bool success, ) = payable(to).call{value: withdrawAmount}("");
             require(success, "Transfer failed");
         } else {
