@@ -24,7 +24,7 @@ interface IRoyaltyWorkflows {
 
 /**
  * @notice Interface for PiperX V2 Router
- * @dev Used for adding liquidity when tokens graduate
+ * @dev Used for adding liquidity when tokens graduate and for swap-based buyback after graduation
  */
 interface IPiperXRouter {
     function addLiquidityETH(
@@ -35,6 +35,13 @@ interface IPiperXRouter {
         address to,
         uint256 deadline
     ) external payable returns (uint256 amountToken, uint256 amountETH, uint256 liquidity);
+
+    function swapExactETHForTokens(
+        uint256 amountOutMin,
+        address[] calldata path,
+        address to,
+        uint256 deadline
+    ) external payable returns (uint256[] memory amounts);
 }
 
 /**
@@ -177,6 +184,16 @@ contract SovryLaunchpad is ReentrancyGuard, Ownable, Pausable {
     event RoyaltiesHarvested(
         address indexed wrapperToken,
         uint256 amount
+    );
+
+    /// @notice Event emitted when royalties are used to buy back and burn wrapper tokens on DEX
+    /// @param wrapperToken Address of the wrapper token
+    /// @param wipSpent Amount of WIP/native spent in the buyback
+    /// @param wrapperBurned Amount of wrapper tokens sent to the burn address
+    event BuybackAndBurn(
+        address indexed wrapperToken,
+        uint256 wipSpent,
+        uint256 wrapperBurned
     );
 
     /// @notice Event emitted when floor price is updated after royalty injection
@@ -486,10 +503,8 @@ contract SovryLaunchpad is ReentrancyGuard, Ownable, Pausable {
         
         LaunchedToken storage token = launchedTokens[wrapperToken];
         require(token.wrapperAddress != address(0), "Token not launched");
-        require(!token.graduated, "Token already graduated");
 
         BondingCurve storage curve = bondingCurves[wrapperToken];
-        require(curve.isActive, "Curve not active");
 
         // Get balance before claiming
         uint256 balanceBefore = address(this).balance;
@@ -507,21 +522,51 @@ contract SovryLaunchpad is ReentrancyGuard, Ownable, Pausable {
         require(balanceAfter > balanceBefore, "No royalties claimed");
 
         uint256 claimedAmount = balanceAfter - balanceBefore;
-
-        // Pump: Inject royalties into bonding curve reserve
-        // This increases the reserve without increasing supply, raising the floor price
-        uint256 oldReserve = curve.reserveBalance;
-        curve.reserveBalance += claimedAmount;
         token.totalRoyaltiesHarvested += claimedAmount;
 
         emit RoyaltiesHarvested(wrapperToken, claimedAmount);
-        emit FloorPriceUpdated(wrapperToken, curve.basePrice + (curve.currentSupply * curve.priceIncrement));
 
-        // Check graduation after pump
-        uint256 marketCap = getMarketCap(wrapperToken);
-        if (marketCap >= graduationThreshold && !token.graduated) {
-            _graduate(wrapperToken);
+        // If the token is still on the bonding curve, keep pumping the reserve as before
+        if (!token.graduated && curve.isActive) {
+            curve.reserveBalance += claimedAmount;
+            emit FloorPriceUpdated(
+                wrapperToken,
+                curve.basePrice + (curve.currentSupply * curve.priceIncrement)
+            );
+
+            // Check graduation after pump
+            uint256 marketCap = getMarketCap(wrapperToken);
+            if (marketCap >= graduationThreshold && !token.graduated) {
+                _graduate(wrapperToken);
+            }
+        } else {
+            // If the token has graduated, use royalties for buyback-and-burn on PiperX instead of
+            // injecting them into the bonding curve reserve.
+            _buybackAndBurn(wrapperToken, claimedAmount);
         }
+    }
+
+    function _buybackAndBurn(address wrapperToken, uint256 wipAmount) internal {
+        require(piperXRouter != address(0), "PiperX router not set");
+        require(wipAmount > 0, "No WIP to spend");
+
+        address[] memory path = new address[](2);
+        path[0] = wipToken;
+        path[1] = wrapperToken;
+
+        address burnAddress = address(0x000000000000000000000000000000000000dEaD);
+
+        uint256[] memory amounts = IPiperXRouter(piperXRouter).swapExactETHForTokens{
+            value: wipAmount
+        }(
+            1, // Allow minimal amount out; slippage is handled off-chain or by router config
+            path,
+            burnAddress,
+            block.timestamp + 600
+        );
+
+        uint256 wrapperBought = amounts[amounts.length - 1];
+        emit BuybackAndBurn(wrapperToken, wipAmount, wrapperBought);
     }
 
     /**

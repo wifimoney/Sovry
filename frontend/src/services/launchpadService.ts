@@ -148,36 +148,14 @@ export async function getLaunchInfo(tokenAddress: string): Promise<LaunchInfo | 
       }
     }
 
-    // Fallback: legacy contract with `launches` mapping (kept for backwards compatibility)
-    const [creator, token, royaltyToken, royaltyVault, totalRaised, tokensSold, graduated] =
-      (await publicClient.readContract({
-        address: SOVRY_LAUNCHPAD_ADDRESS as Address,
-        abi: launchpadAbi,
-        functionName: "launches",
-        args: [tokenAddress as Address],
-      })) as [
-        string,
-        string,
-        string,
-        string,
-        bigint,
-        bigint,
-        boolean,
-      ];
-
-    if (!token || token === "0x0000000000000000000000000000000000000000") {
-      return null;
-    }
-
-    return {
-      creator,
-      token,
-      royaltyToken,
-      royaltyVault,
-      totalRaised,
-      tokensSold,
-      graduated,
-    };
+    // Legacy/old contract path: we no longer support the historical `launches` mapping
+    // here. Instead of calling a non-existent function on the current ABI (which
+    // causes AbiFunctionNotFoundError), just return null so callers can handle the
+    // absence of launch info gracefully.
+    console.warn(
+      "getLaunchInfo: detected legacy SovryLaunchpad contract without supported read methods; returning null.",
+    );
+    return null;
   } catch (error) {
     console.error("Error fetching launch info:", error);
     return null;
