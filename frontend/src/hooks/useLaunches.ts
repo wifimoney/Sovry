@@ -25,6 +25,7 @@ export interface LaunchData {
   marketCap?: string
   bondingProgress?: number
   category?: string
+  graduated?: boolean
 }
 
 async function fetchLaunches(first: number, skip: number): Promise<BasicLaunch[]> {
@@ -85,13 +86,20 @@ export function useLaunches(limit: number = 8) {
       const wrapperTokens = basicLaunches.map((l) => l.token || l.id)
       const enrichedData = await enrichLaunchesData(wrapperTokens)
 
-      // Merge basic launch data with enriched data
-      const merged: LaunchData[] = basicLaunches.map((basic) => {
+      // Fetch launch info to get graduated status
+      const { getLaunchInfo } = await import("@/services/launchpadService")
+      const launchInfoPromises = wrapperTokens.map((token) => getLaunchInfo(token))
+      const launchInfos = await Promise.all(launchInfoPromises)
+
+      // Merge basic launch data with enriched data and graduated status
+      const merged: LaunchData[] = basicLaunches.map((basic, index) => {
         const token = basic.token || basic.id
         const enriched = enrichedData.get(token) || {}
+        const launchInfo = launchInfos[index]
         return {
           ...basic,
           ...enriched,
+          graduated: launchInfo?.graduated || false,
         }
       })
 

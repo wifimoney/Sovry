@@ -55,7 +55,7 @@ function LaunchCardComponent({
       className="h-full"
     >
       <Link
-        href={`/token/${tokenAddress}`}
+        href={`/pool/${tokenAddress}`}
         className="block no-underline h-full focus:outline-none"
         aria-label={`View ${ticker} token details. Market cap: ${marketCap}. Bonding curve progress: ${bondingCurvePercent.toFixed(1)}%`}
         onClick={onClick}

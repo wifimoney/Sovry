@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import { ImmersiveHero } from "@/components/hero/ImmersiveHero";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DynamicWidget } from "@dynamic-labs/sdk-react-core";
 import { PlusCircle, Search, Rocket, ArrowRight } from "lucide-react";
 import Link from "next/link";
@@ -39,7 +40,13 @@ type Category = (typeof CATEGORIES)[number];
 
 // Latest Launches Section Component
 function LatestLaunchesSection() {
-  const { launches, loading, error, retry } = useLaunches(6);
+  const [showGraduated, setShowGraduated] = useState(false)
+  const { launches, loading, error, retry } = useLaunches(6)
+  
+  // Filter launches based on graduated state
+  const filteredLaunches = showGraduated
+    ? launches.filter((launch) => launch.graduated)
+    : launches.filter((launch) => !launch.graduated)
 
   return (
     <section className="px-4 md:px-6 py-8 sm:py-12" aria-labelledby="latest-launches-heading">
@@ -55,15 +62,28 @@ function LatestLaunchesSection() {
               Discover the latest token launches on the Terminal
             </p>
           </div>
-          <Link href="/launches">
-            <Button
-              variant="outline"
-              className="flex items-center gap-2 border-zinc-800 hover:border-sovry-green/50 hover:text-sovry-green"
-            >
-              View All
-              <ArrowRight className="h-4 w-4" />
-            </Button>
-          </Link>
+          <div className="flex items-center gap-3">
+            {/* Graduated Filter */}
+            <Tabs value={showGraduated ? "graduated" : "active"} onValueChange={(value) => setShowGraduated(value === "graduated")}>
+              <TabsList className="bg-zinc-900/50 border border-zinc-800">
+                <TabsTrigger value="active" className="data-[state=active]:bg-zinc-800">
+                  Active
+                </TabsTrigger>
+                <TabsTrigger value="graduated" className="data-[state=active]:bg-zinc-800">
+                  Graduated
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+            <Link href="/launches">
+              <Button
+                variant="outline"
+                className="flex items-center gap-2 border-zinc-800 hover:border-sovry-green/50 hover:text-sovry-green"
+              >
+                View All
+                <ArrowRight className="h-4 w-4" />
+              </Button>
+            </Link>
+          </div>
         </header>
 
         {/* Launches Grid */}
@@ -86,10 +106,12 @@ function LatestLaunchesSection() {
               Retry
             </Button>
           </div>
-        ) : launches.length === 0 ? (
+        ) : filteredLaunches.length === 0 ? (
           <div className="bg-zinc-900/50 backdrop-blur-sm border border-zinc-800 rounded-xl p-8 text-center">
             <p className="text-sm text-zinc-400">
-              No launches yet. Be the first to create one!
+              {showGraduated 
+                ? "No graduated tokens yet." 
+                : "No active launches yet. Be the first to create one!"}
             </p>
           </div>
         ) : (
@@ -98,7 +120,7 @@ function LatestLaunchesSection() {
             role="list"
             aria-label="Latest token launches"
           >
-            {launches.slice(0, 6).map((launch, index) => {
+            {filteredLaunches.slice(0, 6).map((launch, index) => {
               // Map launch data to LaunchCard props
               // Note: Using available data structure - imageUrl maps to image, symbol maps to ticker
               // marketCap and bondingProgress are already calculated by enrichLaunchesData

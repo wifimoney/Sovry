@@ -51,19 +51,20 @@ export function ImmersiveHero() {
   };
 
   return (
-    <div className="relative h-[60vh] min-h-[500px] w-full overflow-hidden">
+    <div className="relative h-screen min-h-[500px] w-full overflow-hidden">
       {/* Background Image with Gradient Mask */}
       <div className="absolute inset-0">
         {/* Gradient Overlays */}
-        <div className="absolute inset-0 bg-gradient-to-r from-zinc-950 via-zinc-950/90 to-transparent z-10" />
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-zinc-950/50 to-zinc-950 z-10" />
+        <div className="absolute inset-0 bg-gradient-to-r from-zinc-950 via-zinc-950/60 to-transparent z-10" />
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-zinc-950/30 to-zinc-950 z-10" />
         
         {/* Background Image - Using CSS background for better compatibility */}
         <div
-          className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+          className="absolute inset-0 bg-center bg-no-repeat"
           style={{
-            backgroundImage: "url('/0_0.gif')",
+            backgroundImage: "url('/background.gif')",
             backgroundColor: "#09090B", // Fallback void black
+            backgroundSize: "100% 100%", // Stretches to fill
           }}
         />
         
