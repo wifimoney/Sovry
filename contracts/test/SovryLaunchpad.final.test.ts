@@ -268,7 +268,7 @@ describe("SovryLaunchpad - Final Test Suite", function () {
           ethers.utils.parseEther("0.001"),
           ethers.utils.parseEther("0.001")
         )
-      ).to.be.revertedWith("Token already launched");
+      ).to.be.revertedWithCustomError(launchpad, "TokenAlreadyLaunched");
     });
 
     it("Should prevent prefund theft via race condition", async function () {
@@ -292,7 +292,7 @@ describe("SovryLaunchpad - Final Test Suite", function () {
           ethers.utils.parseEther("0.001"),
           ethers.utils.parseEther("0.001")
         )
-      ).to.be.revertedWith("Insufficient deposit balance");
+      ).to.be.revertedWithCustomError(launchpad, "InsufficientDeposit");
     });
 
     it("Should handle overflow edge cases in bonding curve", async function () {

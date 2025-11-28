@@ -18,25 +18,36 @@ library BondingCurveLib {
 
     /**
      * @notice Calculate buy price using linear bonding curve
-     * @param curve The bonding curve data
+     * @param basePrice Base price for the curve
+     * @param priceIncrement Price increment per token unit
+     * @param currentSupply Current supply in curve
+     * @param initialCurveSupply Initial curve supply
      * @param amount Amount of tokens to buy (in wrapper units)
      * @param wrapUnit Wrapper unit for normalization
      * @return totalCost Total cost including base and increment
      */
     function calculateBuyPrice(
-        Curve memory curve,
+        uint256 basePrice,
+        uint256 priceIncrement,
+        uint256 currentSupply,
+        uint256 initialCurveSupply,
         uint256 amount,
         uint256 wrapUnit
     ) internal pure returns (uint256 totalCost) {
+        // Calculate sold tokens
+        uint256 soldRaw = initialCurveSupply > currentSupply
+            ? (initialCurveSupply - currentSupply)
+            : 0;
+        
+        uint256 soldUnits = soldRaw / wrapUnit;
         uint256 amountUnits = amount / wrapUnit;
-        uint256 soldUnits = curve.currentSupply / wrapUnit;
 
         // Base cost: basePrice * amountUnits
-        uint256 baseCost = curve.basePrice * amountUnits;
+        uint256 baseCost = basePrice * amountUnits;
 
         // Increment cost: priceIncrement * (soldUnits * amountUnits + amountUnits^2 / 2)
-        uint256 term1 = curve.priceIncrement * soldUnits * amountUnits;
-        uint256 term2 = (curve.priceIncrement * amountUnits * amountUnits) / 2;
+        uint256 term1 = priceIncrement * soldUnits * amountUnits;
+        uint256 term2 = (priceIncrement * amountUnits * amountUnits) / 2;
 
         uint256 incrementCost = term1 + term2;
         totalCost = baseCost + incrementCost;
@@ -44,25 +55,36 @@ library BondingCurveLib {
 
     /**
      * @notice Calculate sell price using linear bonding curve
-     * @param curve The bonding curve data
+     * @param basePrice Base price for the curve
+     * @param priceIncrement Price increment per token unit
+     * @param currentSupply Current supply in curve
+     * @param initialCurveSupply Initial curve supply
      * @param amount Amount of tokens to sell (in wrapper units)
      * @param wrapUnit Wrapper unit for normalization
      * @return totalProceeds Total proceeds before fees
      */
     function calculateSellPrice(
-        Curve memory curve,
+        uint256 basePrice,
+        uint256 priceIncrement,
+        uint256 currentSupply,
+        uint256 initialCurveSupply,
         uint256 amount,
         uint256 wrapUnit
     ) internal pure returns (uint256 totalProceeds) {
+        // Calculate sold tokens
+        uint256 soldRaw = initialCurveSupply > currentSupply
+            ? (initialCurveSupply - currentSupply)
+            : 0;
+        
+        uint256 soldUnits = soldRaw / wrapUnit;
         uint256 amountUnits = amount / wrapUnit;
-        uint256 soldUnits = curve.currentSupply / wrapUnit;
 
         // Base proceeds: basePrice * amountUnits
-        uint256 baseProceeds = curve.basePrice * amountUnits;
+        uint256 baseProceeds = basePrice * amountUnits;
 
         // Increment proceeds: priceIncrement * (soldUnits * amountUnits - amountUnits^2 / 2)
-        uint256 term1 = curve.priceIncrement * soldUnits * amountUnits;
-        uint256 term2 = (curve.priceIncrement * amountUnits * amountUnits) / 2;
+        uint256 term1 = priceIncrement * soldUnits * amountUnits;
+        uint256 term2 = (priceIncrement * amountUnits * amountUnits) / 2;
 
         uint256 incrementProceeds = term1 - term2;
         totalProceeds = baseProceeds + incrementProceeds;
