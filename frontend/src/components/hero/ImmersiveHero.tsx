@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { PlusCircle } from "lucide-react";
+import { TrendingFloat } from "./TrendingFloat";
 
 export function ImmersiveHero() {
   const targetValue = 98375.19;
@@ -53,14 +54,25 @@ export function ImmersiveHero() {
     <div className="relative h-[60vh] min-h-[500px] w-full overflow-hidden">
       {/* Background Image with Gradient Mask */}
       <div className="absolute inset-0">
-        <div className="absolute inset-0 bg-gradient-to-r from-void-black via-void-black/80 to-transparent z-10" />
+        {/* Gradient Overlays */}
+        <div className="absolute inset-0 bg-gradient-to-r from-zinc-950 via-zinc-950/90 to-transparent z-10" />
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-zinc-950/50 to-zinc-950 z-10" />
+        
+        {/* Background Image - Using CSS background for better compatibility */}
         <div
-          className="absolute inset-0 bg-cover bg-center"
+          className="absolute inset-0 bg-cover bg-center bg-no-repeat"
           style={{
-            backgroundImage: "url('https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=1920&q=80')",
+            backgroundImage: "url('/0_0.gif')",
+            backgroundColor: "#09090B", // Fallback void black
           }}
         />
+        
+        {/* Fallback gradient if image fails to load */}
+        <div className="absolute inset-0 bg-gradient-to-br from-zinc-950 via-zinc-900 to-zinc-950 opacity-0 hover:opacity-0" />
       </div>
+
+      {/* Trending Float Card */}
+      <TrendingFloat />
 
       {/* Content */}
       <div className="relative z-20 h-full flex items-center">

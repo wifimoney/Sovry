@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { useDynamicContext } from "@dynamic-labs/sdk-react-core";
-import { AppShell } from "@/components/layout/AppShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { fetchWalletIPAssets } from "@/services/storyProtocolService";
@@ -112,67 +111,63 @@ export default function PortfolioPage() {
 
   if (!walletAddress) {
     return (
-      <AppShell>
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-10">
-          <Card className="glass-card">
-            <CardContent className="p-8 text-center">
-              <Coins className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-              <h2 className="text-xl font-semibold mb-2">Connect Your Wallet</h2>
-              <p className="text-muted-foreground">
-                Connect your wallet to view your portfolio holdings.
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-      </AppShell>
+      <Card className="bg-zinc-900/50 backdrop-blur-sm border border-zinc-800 rounded-xl">
+        <CardContent className="p-8 text-center">
+          <Coins className="h-12 w-12 mx-auto mb-4 text-zinc-400" />
+          <h2 className="text-xl font-semibold text-zinc-50 mb-2">Connect Your Wallet</h2>
+          <p className="text-zinc-400">
+            Connect your wallet to view your portfolio holdings.
+          </p>
+        </CardContent>
+      </Card>
     );
   }
 
   return (
-    <AppShell>
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-10">
+    <>
+      <div className="space-y-6">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-2">Portfolio</h1>
-          <p className="text-muted-foreground">
+        <div>
+          <h1 className="text-2xl md:text-3xl font-bold text-zinc-50 mb-2">Portfolio</h1>
+          <p className="text-zinc-400 text-base leading-relaxed">
             View and manage your IP asset holdings
           </p>
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-          <Card className="glass-card">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <Card className="bg-zinc-900/50 backdrop-blur-sm border border-zinc-800 rounded-xl">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-muted-foreground mb-1">Net Worth</p>
-                  <p className="text-2xl font-bold">${calculateNetWorth().toFixed(2)}</p>
+                  <p className="text-zinc-400 text-sm uppercase tracking-wide mb-1">Net Worth</p>
+                  <p className="text-2xl font-bold text-zinc-50">${calculateNetWorth().toFixed(2)}</p>
                 </div>
-                <DollarSign className="h-8 w-8 text-primary" />
+                <DollarSign className="h-8 w-8 text-sovry-green" />
               </div>
             </CardContent>
           </Card>
 
-          <Card className="glass-card">
+          <Card className="bg-zinc-900/50 backdrop-blur-sm border border-zinc-800 rounded-xl">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-muted-foreground mb-1">Total Holdings</p>
-                  <p className="text-2xl font-bold">{assets.length}</p>
+                  <p className="text-zinc-400 text-sm uppercase tracking-wide mb-1">Total Holdings</p>
+                  <p className="text-2xl font-bold text-zinc-50">{assets.length}</p>
                 </div>
-                <Coins className="h-8 w-8 text-primary" />
+                <Coins className="h-8 w-8 text-sovry-green" />
               </div>
             </CardContent>
           </Card>
 
-          <Card className="glass-card">
+          <Card className="bg-zinc-900/50 backdrop-blur-sm border border-zinc-800 rounded-xl">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-muted-foreground mb-1">Claimable Revenue</p>
-                  <p className="text-2xl font-bold">${calculateTotalClaimable().toFixed(2)}</p>
+                  <p className="text-zinc-400 text-sm uppercase tracking-wide mb-1">Claimable Revenue</p>
+                  <p className="text-2xl font-bold text-zinc-50">${calculateTotalClaimable().toFixed(2)}</p>
                 </div>
-                <TrendingUp className="h-8 w-8 text-secondary" />
+                <TrendingUp className="h-8 w-8 text-sovry-pink" />
               </div>
             </CardContent>
           </Card>
@@ -180,21 +175,21 @@ export default function PortfolioPage() {
 
         {/* Holdings List */}
         {loading ? (
-          <Card className="glass-card">
+          <Card className="bg-zinc-900/50 backdrop-blur-sm border border-zinc-800 rounded-xl">
             <CardContent className="p-8 text-center">
-              <Loader2 className="h-8 w-8 mx-auto mb-4 animate-spin text-primary" />
-              <p className="text-muted-foreground">Loading your holdings...</p>
+              <Loader2 className="h-8 w-8 mx-auto mb-4 animate-spin text-sovry-green" />
+              <p className="text-zinc-400">Loading your holdings...</p>
             </CardContent>
           </Card>
         ) : assets.length === 0 ? (
-          <Card className="glass-card">
+          <Card className="bg-zinc-900/50 backdrop-blur-sm border border-zinc-800 rounded-xl">
             <CardContent className="p-8 text-center">
-              <Coins className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-              <h2 className="text-xl font-semibold mb-2">No Holdings Found</h2>
-              <p className="text-muted-foreground mb-4">
+              <Coins className="h-12 w-12 mx-auto mb-4 text-zinc-400" />
+              <h2 className="text-xl font-semibold text-zinc-50 mb-2">No Holdings Found</h2>
+              <p className="text-zinc-400 mb-4">
                 You don't have any IP assets in your portfolio yet.
               </p>
-              <Button className="buy-button" asChild>
+              <Button variant="default" asChild>
                 <a href="/create">Create Your First IP</a>
               </Button>
             </CardContent>
@@ -202,7 +197,7 @@ export default function PortfolioPage() {
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {assets.map((asset) => (
-              <Card key={asset.id} className="glass-card hover:border-primary/50 transition-colors">
+              <Card key={asset.id} className="bg-zinc-900/50 backdrop-blur-sm border border-zinc-800 rounded-xl hover:border-sovry-green/50 transition-colors">
                 <CardHeader>
                   <div className="flex items-center gap-4">
                     {asset.image && (
@@ -213,30 +208,30 @@ export default function PortfolioPage() {
                       />
                     )}
                     <div className="flex-1 min-w-0">
-                      <CardTitle className="text-lg truncate">{asset.name}</CardTitle>
-                      <p className="text-sm text-muted-foreground font-mono">{asset.symbol}</p>
+                      <CardTitle className="text-lg truncate text-zinc-50">{asset.name}</CardTitle>
+                      <p className="text-sm text-zinc-400 font-mono">{asset.symbol}</p>
                     </div>
                   </div>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
                     <div className="flex justify-between">
-                      <span className="text-sm text-muted-foreground">Balance</span>
-                      <span className="text-sm font-semibold">{asset.balance.toFixed(2)}</span>
+                      <span className="text-sm text-zinc-400">Balance</span>
+                      <span className="text-sm font-semibold text-zinc-50">{asset.balance.toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-sm text-muted-foreground">Value</span>
-                      <span className="text-sm font-semibold">${asset.valueUSD.toFixed(2)}</span>
+                      <span className="text-sm text-zinc-400">Value</span>
+                      <span className="text-sm font-semibold text-zinc-50">${asset.valueUSD.toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-sm text-muted-foreground">APY</span>
-                      <span className="text-sm font-semibold text-primary">{asset.apy}</span>
+                      <span className="text-sm text-zinc-400">APY</span>
+                      <span className="text-sm font-semibold text-sovry-green">{asset.apy}</span>
                     </div>
                     {asset.claimableRevenue > 0 && (
-                      <div className="pt-3 border-t border-border">
+                      <div className="pt-3 border-t border-zinc-800">
                         <div className="flex justify-between items-center">
-                          <span className="text-sm text-muted-foreground">Claimable</span>
-                          <span className="text-sm font-semibold text-secondary">
+                          <span className="text-sm text-zinc-400">Claimable</span>
+                          <span className="text-sm font-semibold text-sovry-pink">
                             ${asset.claimableRevenue.toFixed(2)}
                           </span>
                         </div>
@@ -249,7 +244,7 @@ export default function PortfolioPage() {
           </div>
         )}
       </div>
-    </AppShell>
+    </>
   );
 }
 

@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useDynamicContext } from "@dynamic-labs/sdk-react-core";
 import { LayoutGrid, Coins, User } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { SovrySymbol } from "@/components/ui/SovrySymbol";
 
 const NAV_ITEMS = [
   { label: "Home", href: "/", icon: LayoutGrid },
@@ -21,8 +22,8 @@ export function Sidebar() {
         {/* Logo */}
         <div className="px-3 mb-6">
           <Link href="/" className="flex items-center space-x-3">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-primary via-primary/80 to-primary flex items-center justify-center shadow-inner flex-shrink-0">
-              <span className="text-background font-black text-lg">S</span>
+            <div className="w-10 h-10 rounded-2xl bg-black/40 backdrop-blur-sm border border-zinc-800/50 flex items-center justify-center shadow-inner flex-shrink-0">
+              <SovrySymbol size={24} className="text-foreground" />
             </div>
             <div className="flex flex-col overflow-hidden">
               <span className="text-foreground font-semibold leading-tight text-sm whitespace-nowrap">

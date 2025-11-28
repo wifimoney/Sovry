@@ -5,13 +5,13 @@ import { useState, useEffect } from "react";
 import { useDynamicContext } from "@dynamic-labs/sdk-react-core";
 
 import { useParams } from "next/navigation";
-import { Navigation } from "@/components/navigation/Navigation";
 import BondingCurveChart from "@/components/chart/BondingCurveChart";
 import BondingCurveTrading from "@/components/trading/bondingCurveTrading";
 import TransactionHistory from "@/components/trading/transactionHistory";
 import HolderDistribution from "@/components/trading/holderDistribution";
 import CommentSection from "@/components/social/CommentSection";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
 import { launchpadService, type LaunchInfo } from "@/services/launchpadService";
 import { getChartData, type TimeRange } from "@/services/chartDataService";
 
@@ -298,13 +298,10 @@ export default function PoolDetailPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex">
-        <Navigation />
-        <div className="flex-1 ml-16 flex items-center justify-center min-h-screen">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <p className="text-gray-600">Loading pool analysis...</p>
-          </div>
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-sovry-green mx-auto mb-4"></div>
+          <p className="text-zinc-400">Loading pool analysis...</p>
         </div>
       </div>
     );
@@ -312,49 +309,44 @@ export default function PoolDetailPage() {
 
   if (error || !pool) {
     return (
-      <div className="min-h-screen bg-gray-50 flex">
-        <Navigation />
-        <div className="flex-1 ml-16 flex items-center justify-center min-h-screen">
-          <div className="text-center">
-            <div className="text-6xl mb-4">⚠️</div>
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">
-              Pool Not Found
-            </h3>
-            <p className="text-gray-600 mb-6">{error || "This pool doesn't exist or has been removed."}</p>
-            <button 
-              onClick={() => window.history.back()}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium transition-colors"
-            >
-              Go Back
-            </button>
-          </div>
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="text-6xl mb-4">⚠️</div>
+          <h3 className="text-xl font-semibold text-zinc-50 mb-2">
+            Pool Not Found
+          </h3>
+          <p className="text-zinc-400 mb-6">{error || "This pool doesn't exist or has been removed."}</p>
+          <button 
+            onClick={() => window.history.back()}
+            className="bg-sovry-green hover:bg-sovry-green/90 text-black px-6 py-3 rounded-full font-medium transition-colors"
+          >
+            Go Back
+          </button>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background flex">
-      <Navigation />
-      <div className="flex-1 ml-16 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <>
         {/* Header */}
         <div className="mb-8">
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div className="flex items-start gap-4">
               <button
                 onClick={() => window.history.back()}
-                className="mt-1 text-muted-foreground hover:text-foreground transition-colors text-sm"
+                className="mt-1 text-zinc-400 hover:text-zinc-50 transition-colors text-sm"
               >
                 ← Back
               </button>
               <div>
-                <h1 className="text-2xl font-bold text-foreground">
+                <h1 className="text-2xl md:text-3xl font-bold text-zinc-50">
                   {pool.ipAsset?.metadata.title || pool.ipAsset?.name || `${pool.token1.symbol} / ${pool.token0.symbol}`}
                 </h1>
-                <p className="mt-1 text-sm text-muted-foreground">
+                <p className="mt-1 text-sm text-zinc-400">
                   {pool.token1.symbol} • Shared IP Coin
                 </p>
-                <p className="mt-1 text-xs text-muted-foreground">
+                <p className="mt-1 text-xs text-zinc-500">
                   Created by{" "}
                   <span className="font-mono">
                     {pool.ipAsset?.owner?.slice(0, 8)}…{pool.ipAsset?.owner?.slice(-4)}
@@ -363,41 +355,41 @@ export default function PoolDetailPage() {
               </div>
             </div>
             <div className="text-right space-y-1">
-              <div className="text-xs text-muted-foreground uppercase tracking-wide">
+              <div className="text-xs text-zinc-400 uppercase tracking-wide">
                 Market Cap (approx)
               </div>
-              <div className="text-xl font-semibold text-foreground">
+              <div className="text-xl font-semibold text-zinc-50">
                 ${((pool.stats.tvl || 0) / 1_000_000).toFixed(2)}M
               </div>
-              <div className="text-xs text-muted-foreground">
+              <div className="text-xs text-zinc-400">
                 Price ratio {pool.token1.symbol}/{pool.token0.symbol}: {pool.stats.price.toFixed(6)}
               </div>
             </div>
           </div>
           
           {/* Pool Stats Bar */}
-          <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
-            <div className="rounded-lg border border-border/70 bg-card/70 px-3 py-2">
-              <div className="text-muted-foreground mb-1">TVL</div>
-              <div className="text-sm font-medium text-foreground">
+          <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="rounded-lg border border-zinc-800 bg-zinc-900/50 backdrop-blur-sm px-3 py-2">
+              <div className="text-zinc-400 text-xs uppercase tracking-wide mb-1">TVL</div>
+              <div className="text-sm font-medium text-zinc-50">
                 ${(pool.stats.tvl / 1_000_000).toFixed(2)}M
               </div>
             </div>
-            <div className="rounded-lg border border-border/70 bg-card/70 px-3 py-2">
-              <div className="text-muted-foreground mb-1">24h Volume</div>
-              <div className="text-sm font-medium text-foreground">
+            <div className="rounded-lg border border-zinc-800 bg-zinc-900/50 backdrop-blur-sm px-3 py-2">
+              <div className="text-zinc-400 text-xs uppercase tracking-wide mb-1">24h Volume</div>
+              <div className="text-sm font-medium text-zinc-50">
                 ${(pool.stats.volume24h / 1_000).toFixed(1)}K
               </div>
             </div>
-            <div className="rounded-lg border border-border/70 bg-card/70 px-3 py-2">
-              <div className="text-muted-foreground mb-1">APR</div>
-              <div className="text-sm font-medium text-emerald-400">
+            <div className="rounded-lg border border-zinc-800 bg-zinc-900/50 backdrop-blur-sm px-3 py-2">
+              <div className="text-zinc-400 text-xs uppercase tracking-wide mb-1">APR</div>
+              <div className="text-sm font-medium text-sovry-green">
                 {pool.stats.apr}%
               </div>
             </div>
-            <div className="rounded-lg border border-border/70 bg-card/70 px-3 py-2">
-              <div className="text-muted-foreground mb-1">Trades Mode</div>
-              <div className="text-sm font-medium text-foreground">
+            <div className="rounded-lg border border-zinc-800 bg-zinc-900/50 backdrop-blur-sm px-3 py-2">
+              <div className="text-zinc-400 text-xs uppercase tracking-wide mb-1">Trades Mode</div>
+              <div className="text-sm font-medium text-zinc-50">
                 {launchInfo?.graduated ? "DEX (Sovry Router)" : "Bonding Curve (Launchpad)"}
               </div>
             </div>
@@ -405,11 +397,11 @@ export default function PoolDetailPage() {
         </div>
 
         {/* Main Content */}
-        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1.7fr)_minmax(0,1.2fr)] gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1.7fr)_minmax(0,1.2fr)] gap-6">
           {/* Left Column - Chart & Metadata (60-70%) */}
           <div className="space-y-6">
             {/* Enhanced TradingView Chart */}
-            <div className="rounded-xl border border-border/70 bg-card/80 p-4">
+            <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 backdrop-blur-sm p-4">
               <BondingCurveChart
                 priceData={priceData}
                 volumeData={volumeData}
@@ -419,8 +411,8 @@ export default function PoolDetailPage() {
               />
             </div>
 
-            <div className="rounded-xl border border-border/70 bg-card/80 p-6 space-y-6">
-              <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
+            <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 backdrop-blur-sm p-6 space-y-6">
+              <h2 className="text-lg font-semibold text-zinc-50 flex items-center gap-2">
                 🔍 IP Asset Analysis
               </h2>
               
@@ -429,7 +421,7 @@ export default function PoolDetailPage() {
                 <img
                   src={pool.ipAsset?.image}
                   alt={pool.ipAsset?.name}
-                  className="w-full h-72 object-cover rounded-lg border border-border/60"
+                  className="w-full h-72 object-cover rounded-lg border border-zinc-800"
                   onError={(e) => {
                     const target = e.target as HTMLImageElement;
                     target.src = '/placeholder-ip.png';
@@ -439,24 +431,24 @@ export default function PoolDetailPage() {
 
               {/* Metadata */}
               <div className="mb-4">
-                <h3 className="text-lg font-semibold text-foreground mb-2">
+                <h3 className="text-lg font-semibold text-zinc-50 mb-2">
                   {pool.ipAsset?.metadata.title}
                 </h3>
-                <p className="text-sm text-muted-foreground mb-4">
+                <p className="text-sm text-zinc-400 leading-relaxed mb-4">
                   {pool.ipAsset?.metadata.description}
                 </p>
                 
                 {/* Asset Details */}
                 <div className="grid grid-cols-2 gap-4 mb-4 text-xs">
                   <div>
-                    <div className="text-muted-foreground">Owner</div>
-                    <div className="font-mono text-foreground mt-1">
+                    <div className="text-zinc-400 uppercase tracking-wide">Owner</div>
+                    <div className="font-mono text-zinc-50 mt-1">
                       {pool.ipAsset?.owner}
                     </div>
                   </div>
                   <div>
-                    <div className="text-muted-foreground">Token ID</div>
-                    <div className="font-mono text-foreground mt-1">
+                    <div className="text-zinc-400 uppercase tracking-wide">Token ID</div>
+                    <div className="font-mono text-zinc-50 mt-1">
                       #{pool.ipAsset?.tokenId}
                     </div>
                   </div>
@@ -465,64 +457,64 @@ export default function PoolDetailPage() {
 
               {/* PIL Terms - Legal Foundation */}
               <div className="space-y-3">
-                <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                <h3 className="text-sm font-semibold text-zinc-50 flex items-center gap-2">
                   ⚖️ License Terms (Legal Foundation)
                 </h3>
-                <div className="bg-muted/40 rounded-lg p-4 space-y-3 text-xs">
+                <div className="bg-zinc-800/30 rounded-lg p-4 space-y-3 text-xs">
                   <div className="flex justify-between items-center">
-                    <span className="font-medium text-foreground">Commercial Use</span>
+                    <span className="font-medium text-zinc-50">Commercial Use</span>
                     <span className={`px-2 py-1 rounded text-[11px] font-medium ${
                       pool.ipAsset?.licenseTerms.commercialUse 
-                        ? 'bg-emerald-500/20 text-emerald-300' 
-                        : 'bg-red-500/20 text-red-300'
+                        ? 'bg-sovry-green/20 text-sovry-green' 
+                        : 'bg-sovry-pink/20 text-sovry-pink'
                     }`}>
                       {pool.ipAsset?.licenseTerms.commercialUse ? 'Allowed' : 'Restricted'}
                     </span>
                   </div>
                   
                   <div className="flex justify-between items-center">
-                    <span className="font-medium text-foreground">Derivatives Allowed</span>
+                    <span className="font-medium text-zinc-50">Derivatives Allowed</span>
                     <span className={`px-2 py-1 rounded text-[11px] font-medium ${
                       pool.ipAsset?.licenseTerms.derivativesAllowed 
-                        ? 'bg-emerald-500/20 text-emerald-300' 
-                        : 'bg-red-500/20 text-red-300'
+                        ? 'bg-sovry-green/20 text-sovry-green' 
+                        : 'bg-sovry-pink/20 text-sovry-pink'
                     }`}>
                       {pool.ipAsset?.licenseTerms.derivativesAllowed ? 'Yes' : 'No'}
                     </span>
                   </div>
                   
                   <div className="flex justify-between items-center">
-                    <span className="font-medium text-foreground">Royalty Share</span>
-                    <span className="px-2 py-1 rounded text-[11px] font-medium bg-blue-500/20 text-blue-200">
+                    <span className="font-medium text-zinc-50">Royalty Share</span>
+                    <span className="px-2 py-1 rounded text-[11px] font-medium bg-sovry-green/20 text-sovry-green">
                       {pool.ipAsset?.licenseTerms.commercialRevShare}% of on-chain revenue
                     </span>
                   </div>
                   
                   <div className="flex justify-between items-center">
-                    <span className="font-medium text-foreground">Transferable</span>
+                    <span className="font-medium text-zinc-50">Transferable</span>
                     <span className={`px-2 py-1 rounded text-[11px] font-medium ${
                       pool.ipAsset?.licenseTerms.transferable 
-                        ? 'bg-emerald-500/20 text-emerald-300' 
-                        : 'bg-red-500/20 text-red-300'
+                        ? 'bg-sovry-green/20 text-sovry-green' 
+                        : 'bg-sovry-pink/20 text-sovry-pink'
                     }`}>
                       {pool.ipAsset?.licenseTerms.transferable ? 'Yes' : 'No'}
                     </span>
                   </div>
                   
                   <div className="flex justify-between items-start gap-3">
-                    <span className="font-medium text-foreground">Royalty Policy</span>
-                    <span className="text-[11px] text-muted-foreground max-w-xs text-right">
+                    <span className="font-medium text-zinc-50">Royalty Policy</span>
+                    <span className="text-[11px] text-zinc-400 max-w-xs text-right">
                       {pool.ipAsset?.licenseTerms.royaltyPolicy}
                     </span>
                   </div>
                   
                   {pool.ipAsset?.licenseTerms.uri && (
-                    <div className="pt-2 border-t border-border/60">
+                    <div className="pt-2 border-t border-zinc-800">
                       <a 
                         href={pool.ipAsset.licenseTerms.uri}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-xs text-primary hover:text-primary/80 font-medium flex items-center gap-1"
+                        className="text-xs text-sovry-green hover:text-sovry-green/80 font-medium flex items-center gap-1"
                       >
                         📄 View Full License Document
                         <span>→</span>
@@ -535,14 +527,14 @@ export default function PoolDetailPage() {
               {/* Attributes */}
               {pool.ipAsset?.metadata.attributes && (
                 <div className="mt-6">
-                  <h3 className="text-sm font-semibold text-foreground mb-3">
+                  <h3 className="text-sm font-semibold text-zinc-50 mb-3">
                     🏷️ Asset Attributes
                   </h3>
                   <div className="grid grid-cols-2 gap-3 text-xs">
                     {pool.ipAsset.metadata.attributes.map((attr, index) => (
-                      <div key={index} className="bg-muted/40 rounded-lg p-3">
-                        <div className="text-[11px] text-muted-foreground mb-1">{attr.trait_type}</div>
-                        <div className="text-sm font-medium text-foreground">{attr.value}</div>
+                      <div key={index} className="bg-zinc-800/30 rounded-lg p-3">
+                        <div className="text-[11px] text-zinc-400 uppercase tracking-wide mb-1">{attr.trait_type}</div>
+                        <div className="text-sm font-medium text-zinc-50">{attr.value}</div>
                       </div>
                     ))}
                   </div>
@@ -576,26 +568,28 @@ export default function PoolDetailPage() {
 
             {/* Harvest Royalties */}
             {launchInfo && launchTokenAddress && (
-              <div className="rounded-xl border border-border/70 bg-card/80 p-4 space-y-3">
-                <div className="flex items-center justify-between text-xs text-muted-foreground">
-                  <span className="font-medium text-foreground">Harvest Royalties</span>
+              <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 backdrop-blur-sm p-4 space-y-3">
+                <div className="flex items-center justify-between text-xs text-zinc-400">
+                  <span className="font-medium text-zinc-50">Harvest Royalties</span>
                 </div>
-                <p className="text-[11px] text-muted-foreground">
+                <p className="text-xs text-zinc-400 leading-relaxed">
                   Claim pending royalties from Story Protocol to this pool's Launchpad vault and inject them into the
                   bonding curve reserve. This can instantly boost the token price for all holders.
                 </p>
-                <button
+                <Button
                   onClick={handleHarvestRoyalties}
                   disabled={harvesting || !primaryWallet}
-                  className="w-full text-xs px-3 py-2 rounded-md bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  variant="default"
+                  size="sm"
+                  className="w-full"
                 >
                   {harvesting ? "Harvesting Royalties…" : "Harvest Royalties"}
-                </button>
+                </Button>
                 {harvestSuccess && (
-                  <p className="text-[11px] text-emerald-400 mt-1">{harvestSuccess}</p>
+                  <p className="text-xs text-sovry-green mt-1">{harvestSuccess}</p>
                 )}
                 {harvestError && (
-                  <p className="text-[11px] text-red-400 mt-1">{harvestError}</p>
+                  <p className="text-xs text-sovry-pink mt-1">{harvestError}</p>
                 )}
               </div>
             )}
@@ -623,7 +617,6 @@ export default function PoolDetailPage() {
             </Tabs>
           </div>
         )}
-      </div>
-    </div>
+    </>
   );
 }

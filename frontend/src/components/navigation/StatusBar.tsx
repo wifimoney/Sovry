@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useDynamicContext, DynamicWidget } from "@dynamic-labs/sdk-react-core";
 import { ExternalLink } from "lucide-react";
 
-export function BottomBar() {
+export function StatusBar() {
   const { primaryWallet } = useDynamicContext();
 
   return (

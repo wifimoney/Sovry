@@ -88,7 +88,7 @@
   --color-hologram-white: #FAFAFA;
   --color-ash-grey: #A1A1AA;
   --color-deep-zinc: #27272A;
-  /* Sovry Style Guide Colors */
+  /* Sovry Style Guide Colors - Utility Classes */
   --color-sovry-green: #39FF14;
   --color-sovry-pink: #FF10F0;
   --radius-sm: calc(var(--radius) - 4px);
@@ -119,12 +119,12 @@
 
   /* Buy button - Sovry Green (Primary Action) */
   .buy-button {
-    @apply bg-[#39FF14] hover:bg-[#39FF14]/90 text-black font-semibold rounded-lg py-3 px-6 transition-all duration-300;
+    @apply bg-sovry-green hover:bg-sovry-green/90 text-black font-bold uppercase tracking-wide rounded-lg py-3 px-6 transition-colors;
   }
 
   /* Sell button - Sovry Pink (Destructive Action) */
   .sell-button {
-    @apply bg-[#FF10F0] hover:bg-[#FF10F0]/90 text-white font-semibold rounded-lg py-3 px-6 transition-all duration-300;
+    @apply bg-sovry-pink hover:bg-sovry-pink/90 text-white font-bold uppercase tracking-wide rounded-lg py-3 px-6 transition-colors;
   }
 
   /* Enhanced accent-button with Toxic Green */
@@ -145,5 +145,21 @@
   /* Updated apy-badge with Toxic Green */
   .apy-badge {
     @apply inline-flex items-center gap-1 bg-[#39FF14]/25 text-[#39FF14] px-3 py-1 rounded-full text-xs font-medium border border-[#39FF14]/40;
+  }
+}
+
+@layer utilities {
+  /* Shimmer animation for loading states */
+  @keyframes shimmer {
+    0% {
+      background-position: -200% 0;
+    }
+    100% {
+      background-position: 200% 0;
+    }
+  }
+  
+  .animate-shimmer {
+    animation: shimmer 2s infinite;
   }
 }

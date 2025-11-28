@@ -48,9 +48,6 @@ export function Navigation() {
         {/* Logo */}
         <div className="px-3 mb-6">
           <Link href="/" className="flex items-center space-x-3">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-primary via-amber-400 to-primary/80 flex items-center justify-center shadow-inner flex-shrink-0">
-              <span className="text-background font-black text-lg">S</span>
-            </div>
             <div className="flex flex-col overflow-hidden">
               <span className="text-foreground font-semibold leading-tight text-sm whitespace-nowrap">
                 Sovry Launchpad
