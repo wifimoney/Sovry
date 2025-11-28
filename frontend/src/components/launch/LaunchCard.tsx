@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import TokenLogo from "@/components/ui/TokenLogo";
+import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { formatMarketCap } from "@/services/launchDataService";
 
@@ -46,13 +46,29 @@ export default function LaunchCard({ launch }: LaunchCardProps) {
   const displaySymbol = launch.symbol || address.slice(2, 6).toUpperCase();
   const displayName = launch.name || `Token ${address.slice(0, 6)}`;
 
+  // Category emoji mapping
+  const categoryEmoji: Record<string, string> = {
+    Art: "🎨",
+    Music: "🎵",
+    Gaming: "🎮",
+    Photography: "📷",
+    "3D Art": "🎭",
+    "Commercial IP": "💼",
+    "Personal IP": "👤",
+    "IP Asset": "📦",
+    "AI Agent": "🤖",
+    Meme: "😄",
+  };
+
+  const categoryEmojiIcon = categoryEmoji[launch.category || "IP Asset"] || "📦";
+
   return (
     <Link
       href={`/pool/${address}`}
-      className="group rounded-2xl border border-border/60 bg-card/70 hover:border-primary/60 hover:bg-card transition-all duration-200 shadow-sm overflow-hidden flex flex-col hover:shadow-md"
+      className="group relative rounded-xl border border-zinc-800 overflow-hidden bg-zinc-900/50 hover:border-primary/50 transition-all duration-300 hover:shadow-lg hover:shadow-primary/10"
     >
-      {/* Image Section */}
-      <div className="relative h-40 sm:h-48 bg-gradient-to-br from-indigo-500/40 via-purple-500/30 to-emerald-500/40 overflow-hidden">
+      {/* Image Section - 16:9 Aspect Ratio */}
+      <div className="relative w-full aspect-video bg-gradient-to-br from-indigo-500/40 via-purple-500/30 to-emerald-500/40 overflow-hidden">
         {launch.imageUrl || launch.ipId ? (
           <div className="absolute inset-0">
             <img
@@ -60,12 +76,8 @@ export default function LaunchCard({ launch }: LaunchCardProps) {
               alt={displayName}
               className="w-full h-full object-cover"
               onError={(e) => {
-                // Fallback to gradient on error
                 const target = e.target as HTMLImageElement;
                 target.style.display = "none";
-                if (target.parentElement) {
-                  target.parentElement.className += " bg-gradient-to-br from-indigo-500/40 via-purple-500/30 to-emerald-500/40";
-                }
               }}
             />
           </div>
@@ -73,87 +85,50 @@ export default function LaunchCard({ launch }: LaunchCardProps) {
           <div className="absolute inset-0 opacity-30 bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.35),_transparent_60%)]" />
         )}
         
-        {/* Overlay with Token Info */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
-        <div className="absolute bottom-3 left-4 right-4 flex items-end justify-between">
-          <div className="flex items-center gap-2">
-            <TokenLogo
-              tokenAddress={address}
-              ipId={launch.ipId}
-              fallbackName={displaySymbol}
-              size="md"
-              className="border-2 border-background/80"
-            />
-            <div>
-              <div className="text-sm font-semibold text-white truncate max-w-[10rem]">
-                {displaySymbol}
-              </div>
-              <div className="text-xs text-white/80">
-                {displayName.length > 20 ? `${displayName.slice(0, 20)}...` : displayName}
-              </div>
-            </div>
-          </div>
-          {launch.category && (
-            <Badge
-              variant="outline"
-              className={`${categoryColor} text-xs border`}
-            >
-              {launch.category}
-            </Badge>
-          )}
-        </div>
-      </div>
-
-      {/* Content Section */}
-      <div className="p-4 flex-1 flex flex-col gap-3">
-        {/* Market Cap */}
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-xs text-muted-foreground">Market Cap</p>
-            <p className="text-base font-semibold text-foreground">
-              {formatMarketCap(launch.marketCap)}
-            </p>
-          </div>
-          {launch.currentPrice && (
-            <div className="text-right">
-              <p className="text-xs text-muted-foreground">Price</p>
-              <p className="text-sm font-medium text-foreground">
-                {parseFloat(launch.currentPrice).toFixed(4)} IP
-              </p>
-            </div>
-          )}
-        </div>
-
-        {/* Bonding Curve Progress */}
-        <div>
-          <div className="flex items-center justify-between mb-1.5">
-            <p className="text-xs text-muted-foreground">Bonding Curve Progress</p>
-            <p className="text-xs font-medium text-foreground">{bondingProgress.toFixed(1)}%</p>
-          </div>
-          <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
-            <div
-              className="h-full bg-gradient-to-r from-primary to-primary/80 transition-all duration-300"
-              style={{ width: `${Math.min(100, Math.max(0, bondingProgress))}%` }}
-            />
-          </div>
-        </div>
-
-        {/* Footer Info */}
-        <div className="flex items-center justify-between text-[11px] text-muted-foreground pt-2 border-t border-border/40">
-          <div className="flex items-center gap-1.5">
-            <span>Creator</span>
-            <span className="font-mono">
-              {launch.creator.slice(0, 6)}…{launch.creator.slice(-4)}
+        {/* Badge - Top Left: Bonding Curve % in Hot Pink */}
+        <div className="absolute top-3 left-3">
+          <div className="px-3 py-1.5 rounded-lg bg-secondary/90 backdrop-blur-sm border border-secondary/50 shadow-lg">
+            <span className="text-xs font-bold text-secondary-foreground">
+              {Math.round(bondingProgress)}%
             </span>
           </div>
-          <div className="flex items-center gap-2">
-            {createdAtDate && (
-              <span>{createdAtDate.toLocaleDateString()}</span>
-            )}
-            <Badge variant="outline" className="text-[10px] px-1.5 py-0.5 bg-primary/10 text-primary border-primary/20">
-              Launchpad
-            </Badge>
+        </div>
+
+        {/* Badge - Top Right: Category Icon in Glass Badge */}
+        {launch.category && (
+          <div className="absolute top-3 right-3">
+            <div className="px-2.5 py-1.5 rounded-lg bg-card/80 backdrop-blur-sm border border-border">
+              <span className="text-sm">{categoryEmojiIcon}</span>
+            </div>
           </div>
+        )}
+
+        {/* Gradient Overlay */}
+        <div className="absolute inset-0 bg-gradient-to-t from-background/80 via-transparent to-transparent" />
+      </div>
+
+      {/* Footer - Minimal: Token Name and Ticker */}
+      <div className="p-4 bg-zinc-900/50">
+        <div className="flex items-center justify-between">
+          <div className="flex-1 min-w-0">
+            <div className="text-sm font-semibold text-zinc-50 truncate">
+              {displayName}
+            </div>
+            <div className="text-xs text-zinc-400 font-mono">
+              {displaySymbol}
+            </div>
+          </div>
+          {/* Buy Button - Revealed on Hover */}
+          <Button
+            variant="buy"
+            className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 text-xs px-4 py-1.5"
+            onClick={(e) => {
+              e.preventDefault();
+              window.location.href = `/pool/${address}`;
+            }}
+          >
+            Buy
+          </Button>
         </div>
       </div>
     </Link>

@@ -1,9 +1,14 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { Navigation } from "@/components/navigation/Navigation";
+import { AppShell } from "@/components/layout/AppShell";
+import { ImmersiveHero } from "@/components/hero/ImmersiveHero";
+import { CategoryBar } from "@/components/navigation/CategoryBar";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { DynamicWidget } from "@dynamic-labs/sdk-react-core";
+import { PlusCircle, Search } from "lucide-react";
+import Link from "next/link";
 import LaunchCard, { type LaunchCardData } from "@/components/launch/LaunchCard";
 import { enrichLaunchesData } from "@/services/launchDataService";
 
@@ -20,14 +25,11 @@ interface BasicLaunch {
 
 const CATEGORIES = [
   "All",
-  "Art",
-  "Music",
+  "Meme",
+  "AI Agent",
   "Gaming",
-  "Photography",
-  "3D Art",
-  "Commercial IP",
-  "Personal IP",
-  "IP Asset",
+  "Music",
+  "Art",
 ] as const;
 
 type Category = (typeof CATEGORIES)[number];
@@ -138,7 +140,16 @@ export default function Home() {
     if (selectedCategory !== "All") {
       result = result.filter((l) => {
         const category = l.category || "IP Asset";
-        return category === selectedCategory;
+        // Map categories to match our filter categories
+        const categoryMap: Record<string, string> = {
+          Art: "Art",
+          Music: "Music",
+          Gaming: "Gaming",
+          "AI Agent": "AI Agent",
+          Meme: "Meme",
+        };
+        const mappedCategory = categoryMap[category] || category;
+        return mappedCategory === selectedCategory;
       });
     }
 
@@ -165,46 +176,52 @@ export default function Home() {
   const isLoading = loading || enriching;
 
   return (
-    <div className="min-h-screen bg-background flex">
-      <Navigation />
+    <AppShell>
+      {/* Floating Top-Right Buttons */}
+      <div className="fixed top-4 right-4 z-50 flex items-center gap-3">
+        <Link href="/create">
+          <Button variant="buy" className="text-sm px-4 py-2">
+            <PlusCircle className="h-4 w-4 mr-2" />
+            Create
+          </Button>
+        </Link>
+        <div className="bg-zinc-900/50 backdrop-blur-sm border border-zinc-800 rounded-lg">
+          <DynamicWidget variant="dropdown" />
+        </div>
+      </div>
 
-      <main className="flex-1 ml-16 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-        <header className="mb-8">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between mb-6">
-            <div>
-              <h1 className="text-3xl font-semibold tracking-tight">The Gallery</h1>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Discover IP-backed tokens launched on Sovry Launchpad. Click a launch to trade and view details.
-              </p>
-            </div>
-            <div className="w-full max-w-xs sm:max-w-sm">
-              <Input
-                placeholder="Search by name, symbol, or creator"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="h-9 bg-card/80 border-border/70"
-              />
+      {/* Hero Section */}
+      <ImmersiveHero />
+
+      {/* Discovery Section */}
+      <div id="discover" className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Search and Filters */}
+        <div className="mb-6">
+          <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between mb-4">
+            <h2 className="text-2xl font-bold text-zinc-50">Discover Tokens</h2>
+            <div className="w-full sm:w-auto sm:max-w-xs">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search tokens..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="pl-10 h-10 bg-zinc-900/50 border-zinc-800/70"
+                />
+              </div>
             </div>
           </div>
 
-          {/* Category Filter */}
-          <div className="flex flex-wrap gap-2">
-            {CATEGORIES.map((category) => (
-              <Button
-                key={category}
-                variant={selectedCategory === category ? "default" : "outline"}
-                size="sm"
-                onClick={() => setSelectedCategory(category)}
-                className="text-xs h-7"
-              >
-                {category}
-              </Button>
-            ))}
-          </div>
-        </header>
+          {/* Category Bar */}
+          <CategoryBar
+            selectedCategory={selectedCategory}
+            onCategoryChange={setSelectedCategory}
+          />
+        </div>
 
+        {/* Content Grid */}
         {isLoading ? (
-          <div className="border border-border/60 rounded-2xl bg-card/60 p-6">
+          <div className="border border-zinc-800/60 rounded-2xl bg-zinc-900/50 p-6">
             <div className="flex items-center gap-3">
               <div className="h-4 w-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
               <span className="text-sm text-muted-foreground">
@@ -213,7 +230,7 @@ export default function Home() {
             </div>
           </div>
         ) : filtered.length === 0 ? (
-          <div className="border border-border/60 rounded-2xl bg-card/60 p-6 text-sm text-muted-foreground">
+          <div className="border border-zinc-800/60 rounded-2xl bg-zinc-900/50 p-6 text-sm text-zinc-400">
             {search || selectedCategory !== "All" ? (
               <div>
                 <p className="font-medium mb-1">No launches match your filters.</p>
@@ -228,14 +245,14 @@ export default function Home() {
           </div>
         ) : (
           <section>
-            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {filtered.map((launch) => (
                 <LaunchCard key={launch.token || launch.id} launch={launch} />
               ))}
             </div>
           </section>
         )}
-      </main>
-    </div>
+      </div>
+    </AppShell>
   );
 }

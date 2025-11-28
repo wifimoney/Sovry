@@ -369,7 +369,7 @@ export default function CreatePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background via-background to-background/95 flex">
+    <div className="min-h-screen bg-zinc-950 flex">
       <Navigation />
       <main className="flex-1 ml-16 container mx-auto px-4 py-12">
         {/* Hero */}
