@@ -256,7 +256,7 @@ describe("SovryLaunchpad", function () {
         launchpad
           .connect(trader1)
           .buy(wrapperAddress, smallWrapper, maxEthTooLow, deadline2, { value: totalCost2 })
-      ).to.be.revertedWith("Slippage: totalCost > maxEthCost");
+      ).to.be.revertedWithCustomError(launchpad, "SlippageExceeded");
     });
 
     it("Should allow selling tokens and decrease price", async function () {
@@ -390,7 +390,7 @@ describe("SovryLaunchpad", function () {
         launchpad
           .connect(trader1)
           .sell(wrapperAddress, sellAmount, tooHighMinProceeds, deadlineSell)
-      ).to.be.revertedWith("Slippage: netProceeds < minEthProceeds");
+      ).to.be.revertedWithCustomError(launchpad, "SlippageExceeded");
     });
 
     it("Should graduate when market cap threshold is reached and time delay passes", async function () {
@@ -750,7 +750,7 @@ describe("SovryLaunchpad", function () {
           ethers.utils.parseEther("0.001"),
           ethers.utils.parseEther("0.001")
         )
-      ).to.be.revertedWith("Token already launched");
+      ).to.be.revertedWithCustomError(launchpad, "TokenAlreadyLaunched");
     });
 
     it("Should prevent prefund theft via race condition", async function() {
@@ -781,7 +781,7 @@ describe("SovryLaunchpad", function () {
           ethers.utils.parseEther("0.001"),
           ethers.utils.parseEther("0.001")
         )
-      ).to.be.revertedWith("Insufficient deposit balance");
+      ).to.be.revertedWithCustomError(launchpad, "InsufficientDeposit");
     });
 
     it("Should handle overflow edge cases in bonding curve", async function() {
