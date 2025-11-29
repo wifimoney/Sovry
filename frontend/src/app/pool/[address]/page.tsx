@@ -84,7 +84,7 @@ export default function TokenDetailPage() {
       // Token is already graduated - don't show modal automatically
       // but ensure the UI reflects the graduated state
       // The modal can still be triggered manually if needed
-    }
+      }
   }, [details?.launchInfo?.graduated, showGraduationModal])
 
   // Cleanup redirect timer
@@ -215,7 +215,7 @@ export default function TokenDetailPage() {
               tokenSymbol={ticker}
               isGraduated={launchInfo?.graduated || false}
               piperXPoolAddress={graduationData?.liquidityPoolAddress}
-            />
+              />
 
             {/* Activity Feed */}
             <Card>
@@ -228,7 +228,7 @@ export default function TokenDetailPage() {
             </Card>
           </div>
         </div>
-      </div>
+          </div>
 
       {/* Graduation Modal */}
       {details && (
@@ -239,7 +239,7 @@ export default function TokenDetailPage() {
           tokenName={details.name || "Token"}
           tokenAddress={graduationData?.liquidityPoolAddress || address}
         />
-      )}
+        )}
     </div>
   )
 }

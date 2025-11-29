@@ -3,7 +3,7 @@
 import { ReactNode } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { DynamicContextProvider } from "@dynamic-labs/sdk-react-core";
-import { EthereumWalletConnectors } from "@dynamic-labs/ethereum";
+import { EthereumWalletConnectorsWithConfig } from "@dynamic-labs/ethereum";
 import { Toaster } from "sonner";
 import { Toaster as HotToaster } from "react-hot-toast";
 
@@ -35,7 +35,9 @@ export function Providers({ children }: { children: ReactNode }) {
         environmentId: process.env.NEXT_PUBLIC_DYNAMIC_ENVIRONMENT_ID || "",
         initialAuthenticationMode: "connect-only",
         enableVisitTrackingOnConnectOnly: false,
-        walletConnectors: [EthereumWalletConnectors()],
+        walletConnectors: EthereumWalletConnectorsWithConfig({
+          useMetamaskSdk: false,
+        }),
         overrides: {
           evmNetworks,
         },

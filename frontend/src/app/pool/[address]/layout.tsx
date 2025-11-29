@@ -63,3 +63,4 @@ export default function TokenDetailLayout({
   return <>{children}</>
 }
 
+
