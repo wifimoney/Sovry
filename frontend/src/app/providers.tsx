@@ -35,9 +35,9 @@ export function Providers({ children }: { children: ReactNode }) {
         environmentId: process.env.NEXT_PUBLIC_DYNAMIC_ENVIRONMENT_ID || "",
         initialAuthenticationMode: "connect-only",
         enableVisitTrackingOnConnectOnly: false,
-        walletConnectors: EthereumWalletConnectorsWithConfig({
+        walletConnectors: [EthereumWalletConnectorsWithConfig({
           useMetamaskSdk: false,
-        }),
+        })],
         overrides: {
           evmNetworks,
         },

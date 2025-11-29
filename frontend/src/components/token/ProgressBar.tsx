@@ -126,7 +126,7 @@ export function ProgressToGraduation({
       {/* Progress Bar Container */}
       <div className="relative">
         {/* Custom Progress Bar with Gradient */}
-        <div className="relative h-6 w-full overflow-hidden rounded-full bg-zinc-800/50 border border-zinc-800">
+        <div className="relative h-4 sm:h-6 w-full overflow-hidden rounded-full bg-zinc-800/50 border border-zinc-800">
           {/* Animated Progress Fill with Gradient */}
           <div
             className={cn(
@@ -157,8 +157,8 @@ export function ProgressToGraduation({
           </div>
         </div>
 
-        {/* Milestone Markers */}
-        <div className="absolute inset-0 flex items-center pointer-events-none">
+        {/* Milestone Markers - Hidden on mobile, shown on desktop */}
+        <div className="absolute inset-0 hidden sm:flex items-center pointer-events-none">
           {MILESTONES.map((milestone) => (
             <div
               key={milestone}
@@ -176,8 +176,6 @@ export function ProgressToGraduation({
                     : "bg-zinc-600"
                 )}
               />
-              {/* Milestone Label (optional, can be hidden if too cluttered) */}
-              {/* <span className="text-xs text-zinc-500 mt-1">{milestone}%</span> */}
             </div>
           ))}
         </div>

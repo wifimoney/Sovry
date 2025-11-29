@@ -78,7 +78,7 @@ export function TokenHeader({ details, className }: TokenHeaderProps) {
   return (
     <Card className={cn("overflow-hidden", className)}>
       <CardContent className="p-4 sm:p-6">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-6">
+        <div className="flex flex-col items-start gap-4 sm:gap-6">
           {/* Token Image */}
           <div className="relative w-20 h-20 sm:w-20 sm:h-20 flex-shrink-0 rounded-xl overflow-hidden bg-zinc-800 border border-zinc-800">
             <Image
@@ -147,7 +147,7 @@ export function TokenHeader({ details, className }: TokenHeaderProps) {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-6 w-6 p-0 hover:bg-zinc-700 transition-colors"
+                  className="h-8 w-8 sm:h-6 sm:w-6 p-0 hover:bg-zinc-700 transition-colors touch-manipulation"
                   onClick={handleCopyAddress}
                   aria-label="Copy contract address"
                   title="Copy address to clipboard"

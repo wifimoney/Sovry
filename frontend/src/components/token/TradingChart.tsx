@@ -8,6 +8,8 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Loader2, AlertCircle, RefreshCw } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useTradeHistory, type Timeframe } from "@/hooks/useTradeHistory"
+import { trackEvent } from "@/lib/analytics"
+import { memo } from "react"
 
 export interface TradingChartProps {
   tokenAddress: string | null
@@ -17,7 +19,7 @@ export interface TradingChartProps {
 
 const TIMEFRAMES: Timeframe[] = ["1H", "24H", "7D", "ALL"]
 
-export function TradingChart({
+function TradingChartComponent({
   tokenAddress,
   height = 400,
   className,
@@ -199,7 +201,7 @@ export function TradingChart({
             variant={timeframe === tf ? "default" : "outline"}
             size="sm"
             onClick={() => setTimeframe(tf)}
-            className="h-7 text-xs px-3"
+            className="h-8 sm:h-7 text-xs px-3 touch-manipulation min-h-[32px]"
             disabled={isLoading}
           >
             {tf}
@@ -208,7 +210,7 @@ export function TradingChart({
       </div>
 
       {/* Chart Container */}
-      <div className="relative">
+      <div className="relative overflow-x-auto">
         {/* Loading State */}
         {isLoading && !chartInitialized && (
           <div className="absolute inset-0 flex items-center justify-center bg-zinc-900/50 rounded-lg z-10">
@@ -230,7 +232,7 @@ export function TradingChart({
                   variant="outline"
                   size="sm"
                   onClick={() => refetch()}
-                  className="h-6 px-2 text-xs"
+                  className="h-6 px-2 text-xs touch-manipulation"
                 >
                   <RefreshCw className="h-3 w-3 mr-1" />
                   Retry
@@ -243,7 +245,7 @@ export function TradingChart({
         {/* Chart */}
         <div
           ref={containerRef}
-          className="w-full"
+          className="w-full min-w-[600px]"
           style={{ height: `${height}px` }}
         />
 
@@ -260,4 +262,14 @@ export function TradingChart({
     </div>
   )
 }
+
+// Memoize component to prevent unnecessary re-renders
+export const TradingChart = memo(TradingChartComponent, (prevProps, nextProps) => {
+  return (
+    prevProps.tokenAddress === nextProps.tokenAddress &&
+    prevProps.height === nextProps.height
+  )
+})
+
+TradingChart.displayName = "TradingChart"
 

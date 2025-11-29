@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { AlertTriangle } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { trackEvent } from "@/lib/analytics"
 
 export interface SlippageSettingsProps {
   open: boolean
@@ -88,6 +89,12 @@ export function SlippageSettings({
 
     // Save to localStorage
     localStorage.setItem(STORAGE_KEY, customSlippage)
+
+    // Track slippage change
+    trackEvent("slippage_changed", {
+      oldValue: slippage,
+      newValue: customSlippage,
+    })
 
     // Update parent
     onSlippageChange(customSlippage)

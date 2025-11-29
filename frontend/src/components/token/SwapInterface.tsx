@@ -23,6 +23,10 @@ import { SlippageSettings } from "@/components/token/SlippageSettings"
 import { launchpadService } from "@/services/launchpadService"
 import { SOVRY_LAUNCHPAD_ADDRESS } from "@/services/storyProtocolService"
 import { erc20Abi } from "viem"
+import { parseTransactionError, logError, isSlippageError, isBalanceError } from "@/lib/errorUtils"
+import { trackTrade, trackApproval, trackEvent } from "@/lib/analytics"
+import { estimateGas } from "@/lib/bondingCurve"
+import { memo, useEffect as useReactEffect } from "react"
 
 export interface SwapInterfaceProps {
   tokenAddress?: string
@@ -33,7 +37,7 @@ export interface SwapInterfaceProps {
   piperXPoolAddress?: string
 }
 
-export function SwapInterface({
+function SwapInterfaceComponent({
   tokenAddress,
   tokenSymbol = "TOKEN",
   className,
@@ -71,10 +75,25 @@ export function SwapInterface({
   const [isApproved, setIsApproved] = useState(false)
   const [isApproving, setIsApproving] = useState(false)
   const [approvalStep, setApprovalStep] = useState<"approve" | "sell" | null>(null)
+  const [balanceError, setBalanceError] = useState<string | null>(null)
+  const [slippageError, setSlippageError] = useState<string | null>(null)
+  const [estimatedGasCost, setEstimatedGasCost] = useState<string | null>(null)
+  const [isEstimatingGas, setIsEstimatingGas] = useState(false)
 
   // Get wallet connection
   const { primaryWallet } = useDynamicContext()
   const isConnected = !!primaryWallet
+
+  // Track wallet connection state
+  useReactEffect(() => {
+    if (isConnected && primaryWallet?.address) {
+      trackEvent("wallet_connected", {
+        address: primaryWallet.address,
+      })
+    } else {
+      trackEvent("wallet_disconnected", {})
+    }
+  }, [isConnected, primaryWallet?.address])
 
   // Fetch launch details to get current supply
   const { details, loading: detailsLoading } = useLaunchDetails(tokenAddress || null)
@@ -162,10 +181,31 @@ export function SwapInterface({
     debounceTimerRef.current = setTimeout(() => {
       if (fromAmount) {
         calculateOutput(fromAmount, activeTab === "buy")
+        
+        // Estimate gas cost
+        if (tokenAddress && currentSupply > 0n) {
+          setIsEstimatingGas(true)
+          try {
+            const amountBigInt = parseEther(fromAmount)
+            const gasEstimate = estimateGas(amountBigInt)
+            // Estimate gas price (in wei) - using a reasonable default
+            const gasPrice = 20000000000n // 20 gwei (adjust based on network)
+            const gasCost = gasEstimate * gasPrice
+            setEstimatedGasCost(formatEther(gasCost))
+          } catch (error) {
+            console.error("Error estimating gas:", error)
+            setEstimatedGasCost(null)
+          } finally {
+            setIsEstimatingGas(false)
+          }
+        } else {
+          setEstimatedGasCost(null)
+        }
       } else {
         setToAmount("")
         setPriceImpact(null)
         setExchangeRate("")
+        setEstimatedGasCost(null)
       }
     }, 300) // 300ms debounce
 
@@ -175,7 +215,7 @@ export function SwapInterface({
         clearTimeout(debounceTimerRef.current)
       }
     }
-  }, [fromAmount, activeTab, calculateOutput])
+  }, [fromAmount, activeTab, calculateOutput, tokenAddress, currentSupply])
 
   // Handle tab change
   const handleTabChange = (value: string) => {
@@ -191,11 +231,13 @@ export function SwapInterface({
       setToToken("IP")
     }
     
-    // Clear amounts
+    // Clear amounts and errors
     setFromAmount("")
     setToAmount("")
     setPriceImpact(null)
     setExchangeRate("")
+    setBalanceError(null)
+    setSlippageError(null)
   }
 
   // Handle swap button click (flip tokens)
@@ -307,11 +349,16 @@ export function SwapInterface({
     if (activeTab === "buy" && fromToken === "IP") {
       // Validate IP balance
       if (!userBalance || parseFloat(userBalance) < parseFloat(fromAmount)) {
+        const errorMsg = `Insufficient IP balance. You have ${userBalance || "0"} IP, but need ${fromAmount} IP.`
+        setBalanceError(errorMsg)
         toast.error("Insufficient IP balance", {
-          duration: 3000,
+          description: `You have ${userBalance || "0"} IP`,
+          duration: 4000,
         })
+        logError(new Error(errorMsg), "SwapInterface")
         return
       }
+      setBalanceError(null)
 
       // Validate amount > 0
       if (parseFloat(fromAmount) <= 0) {
@@ -332,6 +379,14 @@ export function SwapInterface({
       setIsTrading(true)
       setTradeSuccess(false)
 
+      // Track trade initiation
+      trackEvent("trade_initiated", {
+        type: "buy",
+        tokenAddress,
+        amount: fromAmount,
+        slippage: slippagePercent,
+      })
+
       try {
         const result = await launchpadService.buy(
           tokenAddress,
@@ -342,10 +397,20 @@ export function SwapInterface({
 
         if (result.success) {
           setTradeSuccess(true)
+          trackTrade("buy", tokenAddress, fromAmount, true)
           toast.success("Trade Successful!", {
             duration: 2000,
             icon: "✅",
           })
+
+          // Refresh balances after successful trade
+          if (primaryWallet?.address) {
+            setTimeout(() => {
+              // Trigger balance refresh
+              const event = new CustomEvent("refresh-balances")
+              window.dispatchEvent(event)
+            }, 2000)
+          }
 
           // Reset form after 2 seconds
           setTimeout(() => {
@@ -354,29 +419,59 @@ export function SwapInterface({
             setPriceImpact(null)
             setExchangeRate("")
             setTradeSuccess(false)
+            setEstimatedGasCost(null)
           }, 2000)
         } else {
-          toast.error("Trade Failed", {
-            description: result.error || "Unknown error",
-            duration: 4000,
-          })
+          trackTrade("buy", tokenAddress, fromAmount, false, result.error)
+          const parsedError = parseTransactionError(result.error || new Error("Unknown error"))
+          logError(result.error || new Error("Unknown error"), "SwapInterface.buy")
+          
+          if (isSlippageError(result.error)) {
+            setSlippageError(parsedError.userFriendlyMessage)
+            toast.error(parsedError.userFriendlyMessage, {
+              description: parsedError.suggestion,
+              duration: 5000,
+            })
+          } else {
+            toast.error(parsedError.userFriendlyMessage, {
+              description: parsedError.suggestion || parsedError.message,
+              duration: 5000,
+            })
+          }
         }
       } catch (error) {
-        toast.error("Trade Failed", {
-          description: error instanceof Error ? error.message : "Unknown error",
-          duration: 4000,
-        })
+        const parsedError = parseTransactionError(error)
+        logError(error, "SwapInterface.buy")
+        trackTrade("buy", tokenAddress, fromAmount, false, parsedError.message)
+        
+        if (isSlippageError(error)) {
+          setSlippageError(parsedError.userFriendlyMessage)
+          toast.error(parsedError.userFriendlyMessage, {
+            description: parsedError.suggestion,
+            duration: 5000,
+          })
+        } else {
+          toast.error(parsedError.userFriendlyMessage, {
+            description: parsedError.suggestion || parsedError.message,
+            duration: 5000,
+          })
+        }
       } finally {
         setIsTrading(false)
       }
     } else if (activeTab === "sell" && fromToken === "TOKEN") {
       // Validate token balance
       if (!tokenBalance || parseFloat(tokenBalance) < parseFloat(fromAmount)) {
+        const errorMsg = `Insufficient token balance. You have ${tokenBalance || "0"} ${tokenSymbol}, but need ${fromAmount} ${tokenSymbol}.`
+        setBalanceError(errorMsg)
         toast.error("Insufficient token balance", {
-          duration: 3000,
+          description: `You have ${tokenBalance || "0"} ${tokenSymbol}`,
+          duration: 4000,
         })
+        logError(new Error(errorMsg), "SwapInterface")
         return
       }
+      setBalanceError(null)
 
       // Validate amount > 0
       if (parseFloat(fromAmount) <= 0) {
@@ -405,6 +500,9 @@ export function SwapInterface({
     setIsApproving(true)
     setApprovalStep("approve")
 
+    // Track approval initiation
+    trackEvent("approval_initiated", { tokenAddress })
+
     try {
       const walletClient = await primaryWallet.getWalletClient()
       if (!walletClient) {
@@ -424,6 +522,7 @@ export function SwapInterface({
         data: approveData,
       })
 
+      trackApproval(tokenAddress, true)
       toast.success("Approval successful!", {
         description: `Transaction: ${txHash.slice(0, 10)}...`,
         duration: 3000,
@@ -446,9 +545,12 @@ export function SwapInterface({
         }
       }, 2000)
     } catch (error) {
-      toast.error("Approval failed", {
-        description: error instanceof Error ? error.message : "Unknown error",
-        duration: 4000,
+      const parsedError = parseTransactionError(error)
+      logError(error, "SwapInterface.approve")
+      trackApproval(tokenAddress, false, parsedError.message)
+      toast.error(parsedError.userFriendlyMessage, {
+        description: parsedError.suggestion || parsedError.message,
+        duration: 5000,
       })
     } finally {
       setIsApproving(false)
@@ -463,6 +565,14 @@ export function SwapInterface({
     setIsTrading(true)
     setApprovalStep("sell")
     setTradeSuccess(false)
+
+    // Track trade initiation
+    trackEvent("trade_initiated", {
+      type: "sell",
+      tokenAddress,
+      amount: fromAmount,
+      slippage: slippagePercent,
+    })
 
     try {
       // Calculate minIpOut with slippage
@@ -508,11 +618,20 @@ export function SwapInterface({
       })
 
       setTradeSuccess(true)
+      trackTrade("sell", tokenAddress, fromAmount, true)
       toast.success("Trade Successful!", {
         description: `Transaction: ${sellTxHash.slice(0, 10)}...`,
         duration: 2000,
         icon: "✅",
       })
+
+      // Refresh balances after successful trade
+      if (primaryWallet?.address) {
+        setTimeout(() => {
+          const event = new CustomEvent("refresh-balances")
+          window.dispatchEvent(event)
+        }, 2000)
+      }
 
       // Reset form after 2 seconds
       setTimeout(() => {
@@ -522,12 +641,25 @@ export function SwapInterface({
         setExchangeRate("")
         setTradeSuccess(false)
         setIsApproved(false) // Reset approval status
+        setEstimatedGasCost(null)
       }, 2000)
     } catch (error) {
-      toast.error("Trade Failed", {
-        description: error instanceof Error ? error.message : "Unknown error",
-        duration: 4000,
-      })
+      const parsedError = parseTransactionError(error)
+      logError(error, "SwapInterface.sell")
+      trackTrade("sell", tokenAddress, fromAmount, false, parsedError.message)
+      
+      if (isSlippageError(error)) {
+        setSlippageError(parsedError.userFriendlyMessage)
+        toast.error(parsedError.userFriendlyMessage, {
+          description: parsedError.suggestion,
+          duration: 5000,
+        })
+      } else {
+        toast.error(parsedError.userFriendlyMessage, {
+          description: parsedError.suggestion || parsedError.message,
+          duration: 5000,
+        })
+      }
     } finally {
       setIsTrading(false)
       setApprovalStep(null)
@@ -565,7 +697,7 @@ export function SwapInterface({
           </Alert>
           <Button
             onClick={handleTradeOnPiperX}
-            className="w-full h-12 font-semibold bg-green-500 hover:bg-green-500/90 text-white"
+            className="w-full h-12 sm:h-12 font-semibold bg-green-500 hover:bg-green-500/90 text-white touch-manipulation min-h-[44px]"
           >
             <ExternalLink className="h-5 w-5 mr-2" />
             Trade on PiperX
@@ -584,8 +716,12 @@ export function SwapInterface({
             variant="ghost"
             size="icon"
             className="h-8 w-8"
-            onClick={() => setShowSlippageSettings(true)}
+            onClick={() => {
+              setShowSlippageSettings(true)
+              trackEvent("slippage_changed", { action: "open_settings" })
+            }}
             aria-label="Slippage settings"
+            title="Slippage tolerance settings"
           >
             <Settings className="h-4 w-4 text-zinc-400" />
           </Button>
@@ -593,9 +729,13 @@ export function SwapInterface({
 
         {/* Slippage Display */}
         <div className="flex items-center justify-end">
-          <span className="text-xs text-zinc-500">
+          <button
+            onClick={() => setShowSlippageSettings(true)}
+            className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
+            aria-label="Slippage tolerance settings"
+          >
             Slippage: <span className="text-zinc-300 font-medium">{slippage}%</span>
-          </span>
+          </button>
         </div>
 
         {/* Buy/Sell Tabs */}
@@ -607,6 +747,7 @@ export function SwapInterface({
                 "data-[state=active]:bg-green-500 data-[state=active]:text-white",
                 "data-[state=active]:hover:bg-green-500/90"
               )}
+              aria-label="Buy tokens"
             >
               Buy
             </TabsTrigger>
@@ -616,6 +757,7 @@ export function SwapInterface({
                 "data-[state=active]:bg-red-500 data-[state=active]:text-white",
                 "data-[state=active]:hover:bg-red-500/90"
               )}
+              aria-label="Sell tokens"
             >
               Sell
             </TabsTrigger>
@@ -627,17 +769,39 @@ export function SwapInterface({
         {/* You Pay Section */}
         <div className="space-y-2">
           <label className="text-xs text-zinc-400 font-medium">You Pay</label>
-          <div className="flex gap-2">
+          <div className="flex flex-col sm:flex-row gap-2">
             <Input
               type="number"
               value={fromAmount}
               onChange={(e) => {
                 setFromAmount(e.target.value)
+                // Clear errors when user types
+                setBalanceError(null)
+                setSlippageError(null)
                 // Calculation will be handled by debounced effect
+              }}
+              onKeyDown={(e) => {
+                // Allow: backspace, delete, tab, escape, enter, decimal point
+                if ([8, 9, 27, 13, 46, 110, 190].indexOf(e.keyCode) !== -1 ||
+                    // Allow: Ctrl+A, Ctrl+C, Ctrl+V, Ctrl+X
+                    (e.keyCode === 65 && e.ctrlKey === true) ||
+                    (e.keyCode === 67 && e.ctrlKey === true) ||
+                    (e.keyCode === 86 && e.ctrlKey === true) ||
+                    (e.keyCode === 88 && e.ctrlKey === true) ||
+                    // Allow: home, end, left, right
+                    (e.keyCode >= 35 && e.keyCode <= 39)) {
+                  return
+                }
+                // Ensure that it is a number and stop the keypress
+                if ((e.shiftKey || (e.keyCode < 48 || e.keyCode > 57)) && (e.keyCode < 96 || e.keyCode > 105)) {
+                  e.preventDefault()
+                }
               }}
               placeholder={detailsLoading ? "Loading..." : "0.0"}
               disabled={detailsLoading || !tokenAddress || isTrading || isApproving}
-              className="flex-1 text-lg font-semibold"
+              className="flex-1 text-base sm:text-lg font-semibold"
+              aria-label={`Amount to ${activeTab === "buy" ? "spend" : "sell"}`}
+              aria-describedby={balanceError ? "balance-error" : undefined}
             />
             <Select
               value={fromToken}
@@ -649,7 +813,7 @@ export function SwapInterface({
                 }
               }}
             >
-              <SelectTrigger className="w-24">
+              <SelectTrigger className="w-full sm:w-24">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -658,6 +822,31 @@ export function SwapInterface({
               </SelectContent>
             </Select>
           </div>
+          {/* Balance Display - Stack below on mobile */}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-1 sm:gap-2 pt-1">
+            <span className="text-xs text-zinc-500">
+              Balance: {fromToken === "IP" 
+                ? (userBalance ? parseFloat(userBalance).toFixed(4) : "0.0000")
+                : (tokenBalance ? parseFloat(tokenBalance).toFixed(4) : "0.0000")
+              } {fromToken}
+            </span>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                const balance = fromToken === "IP" ? userBalance : tokenBalance
+                if (balance && parseFloat(balance) > 0) {
+                  setFromAmount(parseFloat(balance).toString())
+                }
+              }}
+              disabled={!isConnected || (fromToken === "IP" ? !userBalance : !tokenBalance)}
+              className="h-6 px-2 text-xs text-sovry-green hover:text-sovry-green/80 hover:bg-sovry-green/10"
+              aria-label={`Set maximum ${fromToken} balance`}
+            >
+              MAX
+            </Button>
+          </div>
         </div>
 
         {/* Swap Arrow Button */}
@@ -665,7 +854,7 @@ export function SwapInterface({
           <Button
             variant="outline"
             size="icon"
-            className="h-10 w-10 rounded-full border-2 border-zinc-800 bg-zinc-900 hover:bg-zinc-800 hover:border-zinc-700"
+            className="h-10 w-10 rounded-full border-2 border-zinc-800 bg-zinc-900 hover:bg-zinc-800 hover:border-zinc-700 touch-manipulation"
             onClick={handleSwapTokens}
             aria-label="Swap tokens"
             disabled={isTrading || isApproving}
@@ -677,16 +866,19 @@ export function SwapInterface({
         {/* You Receive Section */}
         <div className="space-y-2">
           <label className="text-xs text-zinc-400 font-medium">You Receive</label>
-          <div className="flex gap-2">
+          <div className="flex flex-col sm:flex-row gap-2">
             <div className="relative flex-1">
               <Input
                 type="text"
                 value={toAmount || (isCalculating ? "..." : "")}
                 readOnly
                 placeholder={detailsLoading ? "Loading..." : "0.0"}
-                disabled={detailsLoading || isTrading || isApproving}
-                className="flex-1 text-lg font-semibold pr-10 bg-zinc-800/50"
-              />
+              disabled={detailsLoading || isTrading || isApproving}
+              className="flex-1 text-base sm:text-lg font-semibold pr-10 bg-zinc-800/50"
+              aria-label={`Amount to ${activeTab === "buy" ? "receive" : "receive"}`}
+              aria-live="polite"
+              aria-atomic="true"
+            />
               {isCalculating && (
                 <div className="absolute right-3 top-1/2 -translate-y-1/2">
                   <Loader2 className="h-4 w-4 animate-spin text-zinc-400" />
@@ -703,7 +895,7 @@ export function SwapInterface({
                 }
               }}
             >
-              <SelectTrigger className="w-24">
+              <SelectTrigger className="w-full sm:w-24">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -712,10 +904,19 @@ export function SwapInterface({
               </SelectContent>
             </Select>
           </div>
+          {/* Balance Display - Stack below on mobile */}
+          <div className="flex items-center justify-between pt-1">
+            <span className="text-xs text-zinc-500">
+              Balance: {toToken === "IP" 
+                ? (userBalance ? parseFloat(userBalance).toFixed(4) : "0.0000")
+                : (tokenBalance ? parseFloat(tokenBalance).toFixed(4) : "0.0000")
+              } {toToken}
+            </span>
+          </div>
         </div>
 
         {/* Exchange Rate and Price Impact */}
-        {(exchangeRate || priceImpact !== null) && (
+        {(exchangeRate || priceImpact !== null || estimatedGasCost) && (
           <div className="pt-2 border-t border-zinc-800 space-y-2">
             {exchangeRate && (
               <p className="text-xs text-zinc-400 text-center">{exchangeRate}</p>
@@ -726,19 +927,58 @@ export function SwapInterface({
                   Price Impact: <span className={cn(priceImpact > 5 ? "text-red-400 font-semibold" : "text-zinc-300")}>{priceImpact.toFixed(2)}%</span>
                 </span>
                 {priceImpact > 5 && (
-                  <AlertTriangle className="h-3 w-3 text-red-400" />
+                  <AlertTriangle className="h-3 w-3 text-red-400" aria-hidden="true" />
                 )}
               </div>
             )}
             {priceImpact !== null && priceImpact > 5 && (
-              <Alert variant="destructive" className="py-2">
-                <AlertTriangle className="h-3 w-3" />
+              <Alert variant="destructive" className="py-2" role="alert">
+                <AlertTriangle className="h-3 w-3" aria-hidden="true" />
                 <AlertDescription className="text-xs">
                   High price impact! This trade will significantly affect the token price.
                 </AlertDescription>
               </Alert>
             )}
+            {/* Gas Estimation */}
+            {estimatedGasCost && isConnected && (
+              <div className="flex items-center justify-center gap-2">
+                <span className="text-xs text-zinc-500">
+                  Est. Gas: {isEstimatingGas ? (
+                    <Loader2 className="h-3 w-3 inline animate-spin" />
+                  ) : (
+                    `${parseFloat(estimatedGasCost).toFixed(6)} IP`
+                  )}
+                </span>
+              </div>
+            )}
           </div>
+        )}
+
+        {/* Error Messages */}
+        {balanceError && (
+          <Alert variant="destructive" className="py-2">
+            <AlertTriangle className="h-3 w-3" />
+            <AlertDescription className="text-xs">
+              {balanceError}
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {slippageError && (
+          <Alert variant="destructive" className="py-2">
+            <AlertTriangle className="h-3 w-3" />
+            <AlertDescription className="text-xs">
+              {slippageError}
+              <Button
+                variant="link"
+                size="sm"
+                className="h-auto p-0 ml-1 text-xs underline"
+                onClick={() => setShowSlippageSettings(true)}
+              >
+                Increase slippage
+              </Button>
+            </AlertDescription>
+          </Alert>
         )}
 
         {/* Place Trade / Approve Button */}
@@ -752,7 +992,7 @@ export function SwapInterface({
               !fromAmount ||
               parseFloat(fromAmount) <= 0
             }
-            className="w-full h-12 font-semibold bg-blue-500 hover:bg-blue-500/90 text-white disabled:opacity-50"
+            className="w-full h-12 sm:h-12 font-semibold bg-blue-500 hover:bg-blue-500/90 text-white disabled:opacity-50 touch-manipulation min-h-[44px]"
           >
             {isApproving ? (
               <>
@@ -774,10 +1014,11 @@ export function SwapInterface({
               isApproving ||
               detailsLoading ||
               !tokenAddress ||
-              (activeTab === "sell" && !isApproved)
+              (activeTab === "sell" && !isApproved) ||
+              !!balanceError
             }
             className={cn(
-              "w-full h-12 font-semibold",
+              "w-full h-12 sm:h-12 font-semibold touch-manipulation min-h-[44px]",
               activeTab === "buy"
                 ? "bg-green-500 hover:bg-green-500/90 text-white disabled:opacity-50"
                 : "bg-red-500 hover:bg-red-500/90 text-white disabled:opacity-50"
@@ -819,4 +1060,17 @@ export function SwapInterface({
     </Card>
   )
 }
+
+// Memoize component to prevent unnecessary re-renders
+export const SwapInterface = memo(SwapInterfaceComponent, (prevProps, nextProps) => {
+  // Only re-render if these props change
+  return (
+    prevProps.tokenAddress === nextProps.tokenAddress &&
+    prevProps.tokenSymbol === nextProps.tokenSymbol &&
+    prevProps.isGraduated === nextProps.isGraduated &&
+    prevProps.piperXPoolAddress === nextProps.piperXPoolAddress
+  )
+})
+
+SwapInterface.displayName = "SwapInterface"
 

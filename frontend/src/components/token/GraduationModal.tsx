@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button"
 import { Trophy, ExternalLink } from "lucide-react"
 import { cn } from "@/lib/utils"
 import confetti from "canvas-confetti"
+import { trackEvent } from "@/lib/analytics"
 
 export interface GraduationModalProps {
   open: boolean
@@ -143,6 +144,11 @@ export function GraduationModal({
   }
 
   const handleViewOnPiperX = () => {
+    trackEvent("piperx_link_clicked", {
+      tokenAddress,
+      tokenTicker,
+      source: "graduation_modal",
+    })
     window.open(getPiperXDEXUrl(), "_blank", "noopener,noreferrer")
   }
 

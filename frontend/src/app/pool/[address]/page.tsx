@@ -11,13 +11,15 @@ import { ProgressToGraduation } from "@/components/token/ProgressBar"
 import { SwapInterface } from "@/components/token/SwapInterface"
 import { TradingChart } from "@/components/token/TradingChart"
 import { TokenDetailSkeleton } from "@/components/token/TokenDetailSkeleton"
-import TransactionHistory from "@/components/trading/transactionHistory"
+import { TransactionHistory } from "@/components/token/TransactionHistory"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
-import { AlertCircle, Home } from "lucide-react"
+import { AlertCircle, Home, ArrowLeft, RefreshCw } from "lucide-react"
 import { useState, useEffect, useCallback, useRef } from "react"
 import toast from "react-hot-toast"
 import { isAddress } from "viem"
+import { logError, isNetworkError, isRPCError } from "@/lib/errorUtils"
+import { ErrorBoundary } from "@/components/ErrorBoundary"
 
 export default function TokenDetailPage() {
   const params = useParams()
@@ -101,24 +103,32 @@ export default function TokenDetailPage() {
     return <TokenDetailSkeleton />
   }
 
-  // Invalid address format
+  // Invalid address format - 404
   if (!isValidAddress) {
+    logError(new Error(`Invalid address format: ${address}`), "TokenDetailPage")
     return (
       <div className="min-h-screen px-4 md:px-6 py-8 sm:py-12">
         <div className="max-w-7xl mx-auto">
           <Card className="max-w-md mx-auto">
             <CardContent className="p-8 text-center space-y-4">
+              <div className="text-6xl mb-4">404</div>
               <Alert variant="destructive">
                 <AlertCircle className="h-4 w-4" />
-                <AlertDescription>Invalid token address format</AlertDescription>
+                <AlertDescription>Invalid token address</AlertDescription>
               </Alert>
               <p className="text-sm text-zinc-400">
                 The address "{address}" is not a valid Ethereum address.
               </p>
-              <Button onClick={() => router.push("/")} variant="outline">
-                <Home className="h-4 w-4 mr-2" />
-                Go Home
-              </Button>
+              <div className="flex gap-3 justify-center">
+                <Button onClick={() => router.back()} variant="outline">
+                  <ArrowLeft className="h-4 w-4 mr-2" />
+                  Go Back
+                </Button>
+                <Button onClick={() => router.push("/")} variant="outline">
+                  <Home className="h-4 w-4 mr-2" />
+                  Go Home
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </div>
@@ -128,21 +138,77 @@ export default function TokenDetailPage() {
 
   // Error state or token not found
   if (error || !details) {
+    const isNetworkErr = error ? isNetworkError(new Error(error)) : false
+    const isRPCErr = error ? isRPCError(new Error(error)) : false
+    const isTokenNotFound = !error || error.toLowerCase().includes('not found') || error.toLowerCase().includes('does not exist')
+    
+    logError(error || new Error("Token not found"), "TokenDetailPage")
+
     return (
       <div className="min-h-screen px-4 md:px-6 py-8 sm:py-12">
         <div className="max-w-7xl mx-auto">
           <Card className="max-w-md mx-auto">
             <CardContent className="p-8 text-center space-y-4">
-              <Alert variant="destructive">
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>{error || "Token not found"}</AlertDescription>
-              </Alert>
-              <p className="text-sm text-zinc-400">
-                The token address you're looking for doesn't exist or couldn't be loaded.
-              </p>
-              <div className="flex gap-3 justify-center">
+              {isTokenNotFound && (
+                <>
+                  <div className="text-6xl mb-4">404</div>
+                  <Alert variant="destructive">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>Token not found</AlertDescription>
+                  </Alert>
+                  <p className="text-sm text-zinc-400">
+                    The token address you're looking for doesn't exist or couldn't be loaded.
+                  </p>
+                  <p className="text-xs text-zinc-500 mt-2">
+                    If you just created this token, it may take a few moments to appear. Please try again shortly.
+                  </p>
+                </>
+              )}
+              
+              {isNetworkErr && (
+                <>
+                  <Alert variant="destructive">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>Network error</AlertDescription>
+                  </Alert>
+                  <p className="text-sm text-zinc-400">
+                    Unable to connect to the network. Please check your internet connection.
+                  </p>
+                </>
+              )}
+
+              {isRPCErr && (
+                <>
+                  <Alert variant="destructive">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>Blockchain network error</AlertDescription>
+                  </Alert>
+                  <p className="text-sm text-zinc-400">
+                    The blockchain network may be congested. Try switching networks or try again in a moment.
+                  </p>
+                </>
+              )}
+
+              {!isTokenNotFound && !isNetworkErr && !isRPCErr && error && (
+                <>
+                  <Alert variant="destructive">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>{error}</AlertDescription>
+                  </Alert>
+                  <p className="text-sm text-zinc-400">
+                    An error occurred while loading the token.
+                  </p>
+                </>
+              )}
+
+              <div className="flex gap-3 justify-center flex-wrap">
                 <Button onClick={() => refreshDetails()} variant="outline">
+                  <RefreshCw className="h-4 w-4 mr-2" />
                   Retry
+                </Button>
+                <Button onClick={() => router.back()} variant="outline">
+                  <ArrowLeft className="h-4 w-4 mr-2" />
+                  Go Back
                 </Button>
                 <Button onClick={() => router.push("/")} variant="outline">
                   <Home className="h-4 w-4 mr-2" />
@@ -169,32 +235,46 @@ export default function TokenDetailPage() {
   ]
 
   return (
-    <div className="min-h-screen px-4 md:px-6 py-8 sm:py-12">
+    <ErrorBoundary>
+      <div className="min-h-screen px-4 md:px-6 py-8 sm:py-12">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Breadcrumbs */}
         <Breadcrumb items={breadcrumbItems} />
 
         {/* Token Header - Full Width */}
-        <TokenHeader details={details} />
+        <div
+          style={{
+            animation: "fadeIn 0.5s ease-out 0ms both",
+          }}
+        >
+          <TokenHeader details={details} />
+        </div>
 
-        {/* Two-Column Layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-[60%_40%] gap-6">
-          {/* Left Column: TradingChart, then ProgressToGraduation */}
-          <div className="space-y-6">
-            {/* Trading Chart */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Price Chart</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <TradingChart tokenAddress={address} height={400} />
-              </CardContent>
-            </Card>
+        {/* Mobile Layout: Stack vertically with custom order */}
+        <div className="flex flex-col lg:hidden space-y-6">
+          {/* Swap Interface - First on mobile */}
+          <div
+            style={{
+              animation: "fadeIn 0.5s ease-out 100ms both",
+            }}
+          >
+            <SwapInterface
+              tokenAddress={address}
+              tokenSymbol={ticker}
+              isGraduated={launchInfo?.graduated || false}
+              piperXPoolAddress={graduationData?.liquidityPoolAddress}
+            />
+          </div>
 
-            {/* Progress to Graduation */}
-            {launchInfo && launchInfo.totalRaised && (
+          {/* Progress to Graduation - Second on mobile */}
+          {launchInfo && launchInfo.totalRaised && (
+            <div
+              style={{
+                animation: "fadeIn 0.5s ease-out 200ms both",
+              }}
+            >
               <Card>
-                <CardContent className="p-6">
+                <CardContent className="p-4 sm:p-6">
                   <ProgressToGraduation
                     totalRaised={launchInfo.totalRaised}
                     tokenTicker={ticker}
@@ -204,28 +284,101 @@ export default function TokenDetailPage() {
                   />
                 </CardContent>
               </Card>
+            </div>
+          )}
+
+          {/* Trading Chart - Third on mobile */}
+          <div
+            style={{
+              animation: "fadeIn 0.5s ease-out 300ms both",
+            }}
+          >
+            <Card>
+              <CardHeader>
+                <CardTitle>Price Chart</CardTitle>
+              </CardHeader>
+              <CardContent className="overflow-x-auto">
+                <TradingChart tokenAddress={address} height={300} />
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Activity Feed - Last on mobile */}
+          <div
+            style={{
+              animation: "fadeIn 0.5s ease-out 400ms both",
+            }}
+          >
+            <TransactionHistory tokenAddress={address} limit={20} />
+          </div>
+        </div>
+
+        {/* Desktop Layout: Two-Column Grid */}
+        <div className="hidden lg:grid grid-cols-[60%_40%] gap-6">
+          {/* Left Column: TradingChart, then ProgressToGraduation */}
+          <div className="space-y-6">
+            {/* Trading Chart */}
+            <div
+              style={{
+                animation: "fadeIn 0.5s ease-out 100ms both",
+              }}
+            >
+              <Card>
+                <CardHeader>
+                  <CardTitle>Price Chart</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <TradingChart tokenAddress={address} height={500} />
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Progress to Graduation */}
+            {launchInfo && launchInfo.totalRaised && (
+              <div
+                style={{
+                  animation: "fadeIn 0.5s ease-out 200ms both",
+                }}
+              >
+                <Card>
+                  <CardContent className="p-6">
+                    <ProgressToGraduation
+                      totalRaised={launchInfo.totalRaised}
+                      tokenTicker={ticker}
+                      tokenName={tokenName}
+                      tokenAddress={address}
+                      isGraduated={launchInfo.graduated}
+                    />
+                  </CardContent>
+                </Card>
+              </div>
             )}
           </div>
 
           {/* Right Column: SwapInterface, then Activity Feed */}
           <div className="space-y-6">
             {/* Swap Interface */}
-            <SwapInterface
-              tokenAddress={address}
-              tokenSymbol={ticker}
-              isGraduated={launchInfo?.graduated || false}
-              piperXPoolAddress={graduationData?.liquidityPoolAddress}
+            <div
+              style={{
+                animation: "fadeIn 0.5s ease-out 150ms both",
+              }}
+            >
+              <SwapInterface
+                tokenAddress={address}
+                tokenSymbol={ticker}
+                isGraduated={launchInfo?.graduated || false}
+                piperXPoolAddress={graduationData?.liquidityPoolAddress}
               />
+            </div>
 
             {/* Activity Feed */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Recent Activity</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <TransactionHistory tokenAddress={address} limit={10} />
-              </CardContent>
-            </Card>
+            <div
+              style={{
+                animation: "fadeIn 0.5s ease-out 250ms both",
+              }}
+            >
+              <TransactionHistory tokenAddress={address} limit={20} />
+            </div>
           </div>
         </div>
           </div>
@@ -240,6 +393,7 @@ export default function TokenDetailPage() {
           tokenAddress={graduationData?.liquidityPoolAddress || address}
         />
         )}
-    </div>
+      </div>
+    </ErrorBoundary>
   )
 }
