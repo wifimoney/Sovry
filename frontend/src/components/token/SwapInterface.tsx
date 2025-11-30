@@ -566,6 +566,9 @@ function SwapInterfaceComponent({
     setApprovalStep("sell")
     setTradeSuccess(false)
 
+    // Calculate slippage percent first
+    const slippagePercent = parseFloat(slippage) || 1
+
     // Track trade initiation
     trackEvent("trade_initiated", {
       type: "sell",
@@ -576,7 +579,6 @@ function SwapInterfaceComponent({
 
     try {
       // Calculate minIpOut with slippage
-      const slippagePercent = parseFloat(slippage) || 1
       const ipAmountBigInt = parseEther(fromAmount)
       const actualIpOut = calculateSellAmount(ipAmountBigInt, currentSupply)
       const actualIpOutFormatted = parseFloat(formatEther(actualIpOut))
