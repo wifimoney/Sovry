@@ -426,11 +426,14 @@ export default function Home() {
       {/* Floating Top-Right Buttons */}
       <div className="fixed top-4 right-4 z-50 flex items-center gap-3">
         <Link href="/create">
-          <Button variant="buy" className="text-sm px-4 py-2">
+          <Button variant="purple" className="text-sm px-4 py-2">
             <PlusCircle className="h-4 w-4 mr-2" />
             Create
           </Button>
         </Link>
+        <Button variant="login" className="text-sm px-4 py-2">
+          Login
+        </Button>
         <div className="bg-zinc-900/50 backdrop-blur-sm border border-zinc-800 rounded-xl">
           <DynamicWidget variant="dropdown" />
         </div>

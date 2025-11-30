@@ -30,8 +30,7 @@ const nextConfig = {
     }
     
     // Handle Dynamic dependencies properly - exclude problematic modules
-    const nodeModules = [
-      'pino',
+    const nodeModulesToExclude = [
       'pino-pretty', 
       'pino-std-serializers',
       'thread-stream',
@@ -42,12 +41,20 @@ const nextConfig = {
     ];
     
     // Exclude these modules by aliasing them to false (empty module)
-    nodeModules.forEach(module => {
+    nodeModulesToExclude.forEach(module => {
       config.resolve.alias = {
         ...config.resolve.alias,
         [module]: false
       };
     });
+    
+    // Provide a mock for pino instead of excluding it (WalletConnect needs it)
+    if (!isServer) {
+      config.resolve.alias = {
+        ...config.resolve.alias,
+        'pino': path.resolve(__dirname, 'src/lib/pino-mock.js')
+      };
+    }
     
     // Ignore test files and other non-code files from thread-stream
     config.module = config.module || {};
