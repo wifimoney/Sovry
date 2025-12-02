@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useDynamicContext } from "@dynamic-labs/sdk-react-core";
+import { useDynamicContext, DynamicWidget } from "@dynamic-labs/sdk-react-core";
 import { ethers } from "ethers";
 import { useSearchParams } from "next/navigation";
 
@@ -26,6 +26,7 @@ import {
   Database,
   Percent,
   Loader2,
+  Wallet,
 } from "lucide-react";
 
 // ===== Holdings (from Portfolio) =====
@@ -154,6 +155,7 @@ export default function ProfilePage() {
   const { primaryWallet } = useDynamicContext();
   const isConnected = !!primaryWallet;
   const walletAddress = primaryWallet?.address;
+  const [showWalletModal, setShowWalletModal] = useState(false);
 
   const getInitials = () => {
     const addr = walletAddress;
@@ -290,14 +292,69 @@ export default function ProfilePage() {
   const assetCount = assets.length;
   const poolCount = userPools.length;
 
+  const handleConnectWallet = () => {
+    setShowWalletModal(true);
+  };
+
+  const handleConnectTwitter = () => {
+    // TODO: Implement Twitter/X OAuth connection
+    console.log("Connect Twitter/X");
+    // This will be implemented with OAuth flow later
+  };
+
+  const handleConnectDiscord = () => {
+    // TODO: Implement Discord OAuth connection
+    console.log("Connect Discord");
+    // This will be implemented with OAuth flow later
+  };
+
   return (
     <>
         <section className="mb-8">
-          <div className="h-40 sm:h-48 md:h-56 w-full rounded-3xl bg-gradient-to-r from-sovry-green/20 via-sovry-green/10 to-sovry-pink/20 shadow-lg border border-zinc-800" />
+          {/* Hero Banner with Studio Image */}
+          <div className="relative h-40 sm:h-48 md:h-56 w-full rounded-3xl overflow-hidden shadow-lg border border-zinc-800 group">
+            <img
+              src="/profile-logos/515591D7-FD6F-4C0B-B5F6-AEB092D452F1.png"
+              alt="Music Studio"
+              className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+              onError={(e) => {
+                // Fallback to gradient if image not found
+                const target = e.target as HTMLImageElement;
+                target.style.display = "none";
+                const parent = target.parentElement;
+                if (parent) {
+                  parent.className = "h-40 sm:h-48 md:h-56 w-full rounded-3xl bg-gradient-to-r from-sovry-green/20 via-sovry-green/10 to-sovry-pink/20 shadow-lg border border-zinc-800";
+                }
+              }}
+            />
+            {/* Overlay gradient for better text readability */}
+            <div className="absolute inset-0 bg-gradient-to-t from-zinc-950/80 via-zinc-950/40 to-transparent" />
+            {/* Subtle glow effect */}
+            <div className="absolute inset-0 bg-gradient-to-r from-purple-500/10 via-transparent to-pink-500/10 pointer-events-none" />
+          </div>
           <div className="-mt-12 sm:-mt-16 flex flex-col gap-4 md:flex-row md:items-end md:justify-between px-2 sm:px-4">
             <div className="flex items-end gap-4">
-              <div className="flex h-20 w-20 md:h-24 md:w-24 items-center justify-center rounded-full bg-gradient-to-br from-sovry-green via-sovry-green/80 to-sovry-green/60 border-4 border-zinc-950 shadow-xl text-2xl font-bold text-black">
-                {getInitials()}
+              {/* Profile Picture - Frog Astronaut */}
+              <div className="relative flex h-20 w-20 md:h-24 md:w-24 items-center justify-center rounded-full border-4 border-zinc-950 shadow-xl overflow-hidden bg-gradient-to-br from-sovry-green via-sovry-green/80 to-sovry-green/60 group/avatar">
+                <img
+                  src="/profile-logos/elijahblds_Create_a_1600900_NFT_Art_2D_render_in_the_Bored_Ap_1ae416d8-4a95-4d9d-9f1a-b8275bff1d1e_1.png"
+                  alt="Profile"
+                  className="w-full h-full object-cover transition-transform duration-300 group-hover/avatar:scale-110"
+                  onError={(e) => {
+                    // Fallback to initials if image not found
+                    const target = e.target as HTMLImageElement;
+                    target.style.display = "none";
+                    const parent = target.parentElement;
+                    if (parent && !parent.querySelector("span")) {
+                      const span = document.createElement("span");
+                      span.className = "text-2xl font-bold text-black";
+                      span.textContent = getInitials();
+                      parent.appendChild(span);
+                    }
+                  }}
+                />
+                {/* Subtle glow on hover */}
+                <div className="absolute inset-0 rounded-full opacity-0 group-hover/avatar:opacity-100 transition-opacity duration-300 pointer-events-none bg-gradient-to-br from-purple-500/20 via-pink-500/20 to-transparent" />
               </div>
               <div className="flex flex-col gap-2">
                 <div className="flex items-center gap-2">
@@ -345,6 +402,115 @@ export default function ProfilePage() {
             </div>
           </div>
         </section>
+
+        {/* Connection Buttons Section */}
+        <Card className="bg-zinc-900/50 backdrop-blur-sm border border-zinc-800 rounded-xl mb-6">
+          <CardHeader>
+            <CardTitle className="text-lg font-semibold text-zinc-50">Connect Accounts</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              {/* Wallet Connect Button */}
+              {!isConnected ? (
+                <div className="relative">
+                  <button
+                    onClick={handleConnectWallet}
+                    className="group relative flex items-center justify-center gap-3 px-6 py-4 rounded-xl bg-zinc-800/50 border border-zinc-700 hover:border-purple-500/50 transition-all duration-300 hover:bg-zinc-800/70 overflow-hidden w-full hover:shadow-lg hover:shadow-purple-500/20"
+                  >
+                    {/* Floating Wallet Logos */}
+                    <div className="absolute inset-0 flex items-center justify-center gap-12 opacity-20 group-hover:opacity-50 transition-opacity duration-300 pointer-events-none">
+                      {/* MetaMask Logo */}
+                      <div 
+                        className="relative w-12 h-12"
+                        style={{
+                          animation: "float 3s ease-in-out infinite",
+                          animationDelay: "0s",
+                        }}
+                      >
+                        <img
+                          src="/profile-logos/MetaMask-icon-fox.svg"
+                          alt="MetaMask"
+                          className="w-full h-full object-contain"
+                        />
+                      </div>
+                      {/* Ghost Icon */}
+                      <div
+                        className="relative w-10 h-10"
+                        style={{
+                          animation: "float 3s ease-in-out infinite",
+                          animationDelay: "1.5s",
+                        }}
+                      >
+                        <img
+                          src="/profile-logos/4850.sp3ow1.192x192.png"
+                          alt="Ghost"
+                          className="w-full h-full object-contain"
+                        />
+                      </div>
+                    </div>
+                    <Wallet className="relative z-10 h-5 w-5 text-zinc-400 group-hover:text-purple-400 transition-colors" />
+                    <span className="relative z-10 text-sm font-semibold text-zinc-300 group-hover:text-purple-400 transition-colors">
+                      Connect Wallet
+                    </span>
+                  </button>
+                  {showWalletModal && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => setShowWalletModal(false)}>
+                      <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 shadow-xl max-w-md w-full mx-4" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex justify-between items-center mb-4">
+                          <h3 className="text-lg font-semibold text-zinc-50">Connect Wallet</h3>
+                          <button
+                            onClick={() => setShowWalletModal(false)}
+                            className="text-zinc-400 hover:text-zinc-50"
+                          >
+                            ×
+                          </button>
+                        </div>
+                        <DynamicWidget />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="flex items-center justify-center gap-3 px-6 py-4 rounded-xl bg-zinc-800/50 border border-purple-500/50">
+                  <Wallet className="h-5 w-5 text-purple-400" />
+                  <span className="text-sm font-semibold text-purple-400">
+                    Wallet Connected
+                  </span>
+                </div>
+              )}
+
+              {/* Twitter/X Connect Button */}
+              <button
+                onClick={handleConnectTwitter}
+                className="group flex items-center justify-center gap-3 px-6 py-4 rounded-xl bg-zinc-800/50 border border-zinc-700 hover:border-blue-500/50 transition-all duration-300 hover:bg-zinc-800/70"
+              >
+                <img
+                  src="/profile-logos/X_logo_2023_(white).svg.png"
+                  alt="X"
+                  className="h-5 w-5 opacity-80 group-hover:opacity-100 transition-opacity"
+                />
+                <span className="text-sm font-semibold text-zinc-300 group-hover:text-blue-500 transition-colors">
+                  Connect X
+                </span>
+              </button>
+
+              {/* Discord Connect Button */}
+              <button
+                onClick={handleConnectDiscord}
+                className="group flex items-center justify-center gap-3 px-6 py-4 rounded-xl bg-zinc-800/50 border border-zinc-700 hover:border-indigo-500/50 transition-all duration-300 hover:bg-zinc-800/70"
+              >
+                <img
+                  src="/profile-logos/discord-white-icon.png"
+                  alt="Discord"
+                  className="h-5 w-5 opacity-80 group-hover:opacity-100 transition-opacity"
+                />
+                <span className="text-sm font-semibold text-zinc-300 group-hover:text-indigo-500 transition-colors">
+                  Connect Discord
+                </span>
+              </button>
+            </div>
+          </CardContent>
+        </Card>
 
         <Tabs defaultValue={initialTab} className="space-y-6">
           <TabsList>

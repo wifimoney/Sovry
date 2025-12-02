@@ -62,7 +62,7 @@ export function ImmersiveHero() {
         <div
           className="absolute inset-0 bg-center bg-no-repeat"
           style={{
-            backgroundImage: "url('/background.gif')",
+            backgroundImage: "url('/elijahblds_2D_BAYC-style_NFT_illustration_of_a_green_alien_DJ_a8dfdfdd-6690-4fb0-87b7-0f6d29b7b90a_2.png')",
             backgroundColor: "#09090B", // Fallback void black
             backgroundSize: "100% 100%", // Stretches to fill
           }}
