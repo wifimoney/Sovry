@@ -51,7 +51,7 @@ export function ImmersiveHero() {
   };
 
   return (
-    <div className="relative h-screen min-h-[500px] w-full overflow-hidden">
+    <div className="relative h-screen min-h-[600px] max-h-[100vh] w-full overflow-hidden">
       {/* Background Image with Gradient Mask */}
       <div className="absolute inset-0">
         {/* Gradient Overlays */}
@@ -60,11 +60,12 @@ export function ImmersiveHero() {
         
         {/* Background Image - Using CSS background for better compatibility */}
         <div
-          className="absolute inset-0 bg-center bg-no-repeat"
+          className="absolute inset-0 bg-right bg-no-repeat"
           style={{
             backgroundImage: "url('/elijahblds_2D_BAYC-style_NFT_illustration_of_a_green_alien_DJ_a8dfdfdd-6690-4fb0-87b7-0f6d29b7b90a_2.png')",
             backgroundColor: "#09090B", // Fallback void black
-            backgroundSize: "100% 100%", // Stretches to fill
+            backgroundSize: "cover", // Maintains aspect ratio, covers entire area
+            backgroundPosition: "right center", // Aligns image to the right
           }}
         />
         
@@ -77,7 +78,7 @@ export function ImmersiveHero() {
 
       {/* Content */}
       <div className="relative z-20 h-full flex items-center">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 w-full">
           <div className="max-w-2xl">
             {/* Stats Badge */}
             <div className="mb-6">

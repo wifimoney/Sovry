@@ -10,6 +10,11 @@ const inter = Inter({ subsets: ["latin"] });
 export const metadata: Metadata = {
   title: "Sovry - IP Asset Trading Platform",
   description: "Trade intellectual property assets on Story Protocol",
+  viewport: {
+    width: "device-width",
+    initialScale: 1,
+    maximumScale: 5,
+  },
 };
 
 export default function RootLayout({
@@ -24,9 +29,7 @@ export default function RootLayout({
           <div className="min-h-screen bg-zinc-950 flex">
             <Sidebar />
             <main className="flex-1 ml-16 pb-10">
-              <div className="container mx-auto px-4 py-8 max-w-7xl">
-                {children}
-              </div>
+              {children}
             </main>
             <StatusBar />
           </div>

@@ -446,7 +446,7 @@ export default function Home() {
       <LatestLaunchesSection />
 
       {/* Discovery Section */}
-      <div id="discover" className="space-y-6">
+      <div id="discover" className="container mx-auto px-4 py-8 max-w-7xl space-y-6">
         {/* Search and Filters */}
         <div className="space-y-4">
           <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">

@@ -20,9 +20,9 @@ export function TrendingFloat({
   marketCap = "$1.2M",
 }: TrendingFloatProps) {
   return (
-    <div className="absolute top-20 right-8 z-30 hidden lg:block">
+    <div className="absolute top-20 right-4 lg:right-8 xl:right-12 z-30 hidden lg:block max-w-[calc(100vw-2rem)] lg:max-w-none">
       <Link href="/pool/trending">
-        <div className="w-72 bg-zinc-900/50 backdrop-blur-md border border-zinc-800 rounded-xl p-4 shadow-xl hover:border-sovry-green/50 transition-all duration-300 group cursor-pointer">
+        <div className="w-64 lg:w-72 bg-zinc-900/50 backdrop-blur-md border border-zinc-800 rounded-xl p-4 shadow-xl hover:border-sovry-green/50 transition-all duration-300 group cursor-pointer">
           {/* Header */}
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
