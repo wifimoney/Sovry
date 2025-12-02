@@ -168,7 +168,7 @@ function LatestLaunchesSection() {
         <header className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="space-y-2">
             <div className="flex items-center gap-2">
-              <Rocket className="h-5 w-5 sm:h-6 sm:w-6 text-sovry-green" aria-hidden="true" />
+              <Rocket className="h-5 w-5 sm:h-6 sm:w-6 text-sovry-crimson" aria-hidden="true" />
               <h2 id="latest-launches-heading" className="text-2xl md:text-3xl font-bold text-zinc-50">Latest Launches</h2>
             </div>
             <p className="text-sm text-zinc-400">
@@ -190,7 +190,7 @@ function LatestLaunchesSection() {
             <Link href="/launches">
               <Button
                 variant="outline"
-                className="flex items-center gap-2 border-zinc-800 hover:border-sovry-green/50 hover:text-sovry-green"
+                className="flex items-center gap-2 border-zinc-800 hover:border-sovry-crimson/50 hover:text-sovry-crimson"
               >
                 View All
                 <ArrowRight className="h-4 w-4" />
@@ -214,7 +214,7 @@ function LatestLaunchesSection() {
             <Button
               onClick={retry}
               variant="outline"
-              className="border-zinc-800 hover:border-sovry-green/50 hover:text-sovry-green"
+              className="border-zinc-800 hover:border-sovry-crimson/50 hover:text-sovry-crimson"
             >
               Retry
             </Button>
@@ -475,7 +475,7 @@ export default function Home() {
         {isLoading ? (
           <div className="bg-zinc-900/50 backdrop-blur-sm border border-zinc-800 rounded-xl p-6">
             <div className="flex items-center gap-3">
-              <div className="h-4 w-4 border-2 border-sovry-green border-t-transparent rounded-full animate-spin" />
+              <div className="h-4 w-4 border-2 border-sovry-crimson border-t-transparent rounded-full animate-spin" />
               <span className="text-sm text-zinc-400">
                 {loading ? "Loading launches..." : "Enriching launch data..."}
               </span>

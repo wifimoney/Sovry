@@ -11,9 +11,9 @@
   --card-foreground: #FAFAFA;
   --popover: #18181B;
   --popover-foreground: #FAFAFA;
-  /* Primary/Buy - Toxic Green (#39FF14) */
-  --primary: #39FF14;
-  --primary-foreground: #09090B;
+  /* Primary/Buy - Crimson (#DC143C) */
+  --primary: #DC143C;
+  --primary-foreground: #FAFAFA;
   /* Secondary/Sell - Hot Pink (#FF10F0) */
   --secondary: #FF10F0;
   --secondary-foreground: #FAFAFA;
@@ -21,9 +21,9 @@
   --muted: #18181B;
   /* Text Muted - Ash Grey (#A1A1AA / zinc-400) */
   --muted-foreground: #A1A1AA;
-  /* Accent uses primary (Toxic Green) */
-  --accent: #39FF14;
-  --accent-foreground: #09090B;
+  /* Accent uses primary (Crimson) */
+  --accent: #DC143C;
+  --accent-foreground: #FAFAFA;
   /* Destructive uses secondary (Hot Pink) */
   --destructive: #FF10F0;
   --destructive-foreground: #FAFAFA;
@@ -31,8 +31,8 @@
   --border: #27272A;
   /* Input uses surface (Gunmetal) */
   --input: #18181B;
-  /* Ring uses primary (Toxic Green) */
-  --ring: #39FF14;
+  /* Ring uses primary (Crimson) */
+  --ring: #DC143C;
   --radius: 0.625rem;
 }
 
@@ -44,19 +44,19 @@
   --card-foreground: #FAFAFA;
   --popover: #18181B;
   --popover-foreground: #FAFAFA;
-  --primary: #39FF14;
-  --primary-foreground: #09090B;
+  --primary: #DC143C;
+  --primary-foreground: #FAFAFA;
   --secondary: #FF10F0;
   --secondary-foreground: #FAFAFA;
   --muted: #18181B;
   --muted-foreground: #A1A1AA;
-  --accent: #39FF14;
-  --accent-foreground: #09090B;
+  --accent: #DC143C;
+  --accent-foreground: #FAFAFA;
   --destructive: #FF10F0;
   --destructive-foreground: #FAFAFA;
   --border: #27272A;
   --input: #18181B;
-  --ring: #39FF14;
+  --ring: #DC143C;
   --radius: 0.5rem;
 }
 
@@ -83,13 +83,13 @@
   /* Sovry Custom Colors */
   --color-void-black: #09090B;
   --color-gunmetal: #18181B;
-  --color-toxic-green: #39FF14;
+  --color-crimson: #DC143C;
   --color-hot-pink: #FF10F0;
   --color-hologram-white: #FAFAFA;
   --color-ash-grey: #A1A1AA;
   --color-deep-zinc: #27272A;
   /* Sovry Style Guide Colors - Utility Classes */
-  --color-sovry-green: #39FF14;
+  --color-sovry-crimson: #DC143C;
   --color-sovry-pink: #FF10F0;
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
@@ -117,9 +117,9 @@
     @apply bg-input/90 backdrop-blur-sm border border-border rounded-lg px-4 py-3 text-foreground placeholder-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-accent/70 focus:border-accent/50 focus:bg-input transition-all duration-200;
   }
 
-  /* Buy button - Sovry Green (Primary Action) */
+  /* Buy button - Sovry Crimson (Primary Action) */
   .buy-button {
-    @apply bg-sovry-green hover:bg-sovry-green/90 text-black font-bold uppercase tracking-wide rounded-lg py-3 px-6 transition-colors;
+    @apply bg-sovry-crimson hover:bg-sovry-crimson/90 text-white font-bold uppercase tracking-wide rounded-lg py-3 px-6 transition-colors;
   }
 
   /* Sell button - Sovry Pink (Destructive Action) */
@@ -127,14 +127,14 @@
     @apply bg-sovry-pink hover:bg-sovry-pink/90 text-white font-bold uppercase tracking-wide rounded-lg py-3 px-6 transition-colors;
   }
 
-  /* Enhanced accent-button with Toxic Green */
+  /* Enhanced accent-button with Crimson */
   .accent-button {
-    @apply bg-gradient-to-r from-[#39FF14] via-[#39FF14] to-[#39FF14]/90 hover:from-[#39FF14]/95 hover:to-[#39FF14]/80 text-[#09090B] font-semibold rounded-lg py-3 px-6 transition-all duration-300 shadow-lg shadow-[#39FF14]/20 hover:shadow-xl hover:shadow-[#39FF14]/30 active:scale-95;
+    @apply bg-gradient-to-r from-[#DC143C] via-[#DC143C] to-[#DC143C]/90 hover:from-[#DC143C]/95 hover:to-[#DC143C]/80 text-white font-semibold rounded-lg py-3 px-6 transition-all duration-300 shadow-lg shadow-[#DC143C]/20 hover:shadow-xl hover:shadow-[#DC143C]/30 active:scale-95;
   }
 
-  /* Positive PnL / Up charts - Toxic Green */
+  /* Positive PnL / Up charts - Crimson */
   .positive-pnl {
-    @apply text-[#39FF14];
+    @apply text-[#DC143C];
   }
 
   /* Negative PnL / Down charts - Hot Pink */
@@ -142,9 +142,9 @@
     @apply text-[#FF10F0];
   }
 
-  /* Updated apy-badge with Toxic Green */
+  /* Updated apy-badge with Crimson */
   .apy-badge {
-    @apply inline-flex items-center gap-1 bg-[#39FF14]/25 text-[#39FF14] px-3 py-1 rounded-full text-xs font-medium border border-[#39FF14]/40;
+    @apply inline-flex items-center gap-1 bg-[#DC143C]/25 text-[#DC143C] px-3 py-1 rounded-full text-xs font-medium border border-[#DC143C]/40;
   }
 }
 

@@ -624,7 +624,7 @@ export default function CreatePage() {
               placeholder="Search for or create an IP to remix (e.g. Spinning Cat)"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 h-10 bg-zinc-900 border border-zinc-800 rounded-lg focus:ring-2 focus:ring-sovry-green focus:border-transparent"
+              className="pl-10 h-10 bg-zinc-900 border border-zinc-800 rounded-lg focus:ring-2 focus:ring-sovry-crimson focus:border-transparent"
             />
           </div>
           {/* Category Pills */}
@@ -638,9 +638,9 @@ export default function CreatePage() {
 
         {/* Hero */}
         <div className="text-center mb-8 space-y-4">
-          <div className="inline-flex items-center px-4 py-2 bg-sovry-green/10 rounded-full border border-sovry-green/30">
-            <Sparkles className="w-4 h-4 text-sovry-green mr-2" />
-            <span className="text-sm font-medium text-sovry-green uppercase tracking-wide">Create & Launch IP Tokens</span>
+          <div className="inline-flex items-center px-4 py-2 bg-sovry-crimson/10 rounded-full border border-sovry-crimson/30">
+            <Sparkles className="w-4 h-4 text-sovry-crimson mr-2" />
+            <span className="text-sm font-medium text-sovry-crimson uppercase tracking-wide">Create & Launch IP Tokens</span>
           </div>
           <h1 className="text-4xl md:text-5xl font-bold text-zinc-50 tracking-tight">
             Turn Your IP Into a Liquid Asset
@@ -663,7 +663,7 @@ export default function CreatePage() {
         {success && (
           <div className="mb-6">
             <Alert>
-              <CheckCircle className="h-4 w-4 text-sovry-green" />
+              <CheckCircle className="h-4 w-4 text-sovry-crimson" />
               <AlertDescription className="whitespace-pre-line">{success}</AlertDescription>
             </Alert>
           </div>
@@ -672,7 +672,7 @@ export default function CreatePage() {
         {/* Trending IPs Section */}
         <section className="space-y-4 sm:space-y-6 relative">
           <header className="flex items-center gap-2">
-            <Rocket className="h-5 w-5 sm:h-6 sm:w-6 text-sovry-green" />
+            <Rocket className="h-5 w-5 sm:h-6 sm:w-6 text-sovry-crimson" />
             <h2 className="text-2xl md:text-3xl font-bold text-zinc-50">Trending IPs</h2>
           </header>
           {trendingLoading ? (
@@ -740,15 +740,15 @@ export default function CreatePage() {
           {/* IP Assets List */}
           <div className="bg-zinc-900/50 backdrop-blur-sm border border-zinc-800 rounded-xl p-6">
             <div className="flex items-center gap-3 mb-6">
-              <div className="p-2 bg-sovry-green/20 rounded-lg border border-sovry-green/30">
-                <Crown className="h-5 w-5 text-sovry-green" />
+              <div className="p-2 bg-sovry-crimson/20 rounded-lg border border-sovry-crimson/30">
+                <Crown className="h-5 w-5 text-sovry-crimson" />
               </div>
               <h2 className="text-xl font-semibold text-zinc-50">Your IP Assets</h2>
             </div>
 
             {loading ? (
               <div className="flex items-center justify-center py-12">
-                <Loader2 className="h-6 w-6 animate-spin text-sovry-green" />
+                <Loader2 className="h-6 w-6 animate-spin text-sovry-crimson" />
                 <span className="ml-3 text-zinc-400">Fetching IP assets...</span>
               </div>
             ) : displayIPAssets.length === 0 ? (
@@ -768,7 +768,7 @@ export default function CreatePage() {
                       key={ipAsset.ipId}
                       className={`p-4 bg-zinc-900/50 backdrop-blur-sm border rounded-xl cursor-pointer transition-all duration-300 relative ${
                         selectedIP === ipAsset.ipId
-                          ? "border-sovry-green/50 bg-sovry-green/10"
+                          ? "border-sovry-crimson/50 bg-sovry-crimson/10"
                           : "border-zinc-800 hover:border-sovry-pink/50 hover:bg-sovry-pink/5 hover:scale-105 hover:shadow-xl hover:shadow-sovry-pink/30"
                       }`}
                       onClick={() => setSelectedIP(ipAsset.ipId)}
@@ -807,8 +807,8 @@ export default function CreatePage() {
                           <div className="flex items-center space-x-2 mb-2 flex-wrap gap-2">
                             <h3 className="font-semibold text-zinc-50 truncate">{ipAsset.name}</h3>
                             {hasTokens && (
-                              <div className="px-2 py-1 bg-sovry-green/20 rounded-full border border-sovry-green/30 flex-shrink-0">
-                                <span className="text-xs text-sovry-green font-semibold uppercase tracking-wider">Ready</span>
+                              <div className="px-2 py-1 bg-sovry-crimson/20 rounded-full border border-sovry-crimson/30 flex-shrink-0">
+                                <span className="text-xs text-sovry-crimson font-semibold uppercase tracking-wider">Ready</span>
                               </div>
                             )}
                           </div>
@@ -822,16 +822,16 @@ export default function CreatePage() {
                             <div className="mt-3 p-3 bg-zinc-800/30 rounded-lg border border-zinc-700">
                               <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-2">
-                                  <div className="p-1 bg-sovry-green/20 rounded border border-sovry-green/30">
-                                    <Coins className="h-3 w-3 text-sovry-green" />
+                                  <div className="p-1 bg-sovry-crimson/20 rounded border border-sovry-crimson/30">
+                                    <Coins className="h-3 w-3 text-sovry-crimson" />
                                   </div>
                                   <span className="text-sm font-medium text-zinc-50">
                                     {tokenBalance.balance} {tokenBalance.symbol}
                                   </span>
                                 </div>
                                 {hasTokens ? (
-                                  <div className="px-2 py-1 bg-sovry-green/20 rounded-full border border-sovry-green/30">
-                                    <span className="text-xs text-sovry-green font-semibold uppercase tracking-wider">Available</span>
+                                  <div className="px-2 py-1 bg-sovry-crimson/20 rounded-full border border-sovry-crimson/30">
+                                    <span className="text-xs text-sovry-crimson font-semibold uppercase tracking-wider">Available</span>
                                   </div>
                                 ) : (
                                   <div className="px-2 py-1 bg-sovry-pink/20 rounded-full border border-sovry-pink/30">
@@ -853,8 +853,8 @@ export default function CreatePage() {
           {/* Create / Launch Form (only launch existing IP assets) */}
           <div className="bg-zinc-900/50 backdrop-blur-sm border border-zinc-800 rounded-xl p-6">
             <div className="flex items-center gap-3 mb-6">
-              <div className="p-2 bg-sovry-green/20 rounded-lg border border-sovry-green/30">
-                <TrendingUp className="h-5 w-5 text-sovry-green" />
+              <div className="p-2 bg-sovry-crimson/20 rounded-lg border border-sovry-crimson/30">
+                <TrendingUp className="h-5 w-5 text-sovry-crimson" />
               </div>
               <h2 className="text-xl font-semibold text-zinc-50">Launch Existing IP</h2>
             </div>
@@ -907,15 +907,15 @@ export default function CreatePage() {
                             <div className="flex items-center space-x-2 mb-1 flex-wrap gap-1">
                               <h3 className="font-semibold text-zinc-50 truncate text-sm">{ipAsset.name}</h3>
                               {hasTokens && (
-                                <div className="px-1.5 py-0.5 bg-sovry-green/20 rounded-full border border-sovry-green/30 flex-shrink-0">
-                                  <span className="text-[10px] text-sovry-green font-semibold uppercase tracking-wider">Ready</span>
+                                <div className="px-1.5 py-0.5 bg-sovry-crimson/20 rounded-full border border-sovry-crimson/30 flex-shrink-0">
+                                  <span className="text-[10px] text-sovry-crimson font-semibold uppercase tracking-wider">Ready</span>
                                 </div>
                               )}
                             </div>
                             <p className="text-xs text-zinc-400 leading-relaxed line-clamp-2 mb-1">{ipAsset.description}</p>
                             {tokenBalance && (
                               <div className="flex items-center gap-1 mt-1">
-                                <Coins className="h-3 w-3 text-sovry-green" />
+                                <Coins className="h-3 w-3 text-sovry-crimson" />
                                 <span className="text-xs font-medium text-zinc-50">
                                   {tokenBalance.balance} {tokenBalance.symbol}
                                 </span>
@@ -938,8 +938,8 @@ export default function CreatePage() {
             {/* Selected IP + Launch */}
             {selectedIPAsset ? (
               <div className="space-y-4">
-                <div className="p-4 bg-sovry-green/10 border border-sovry-green/30 rounded-xl">
-                  <h3 className="font-medium text-sovry-green mb-3">Selected IP Asset</h3>
+                <div className="p-4 bg-sovry-crimson/10 border border-sovry-crimson/30 rounded-xl">
+                  <h3 className="font-medium text-sovry-crimson mb-3">Selected IP Asset</h3>
                   <div className="flex items-start gap-4">
                     {/* IP Image Preview */}
                     {selectedIPAsset.imageUrl && (
@@ -947,7 +947,7 @@ export default function CreatePage() {
                         <img
                           src={selectedIPAsset.imageUrl}
                           alt={selectedIPAsset.name}
-                          className="w-24 h-24 rounded-lg object-cover border-2 border-sovry-green/30"
+                          className="w-24 h-24 rounded-lg object-cover border-2 border-sovry-crimson/30"
                           onError={(e) => {
                             const target = e.target as HTMLImageElement;
                             target.style.display = "none";
@@ -956,7 +956,7 @@ export default function CreatePage() {
                       </div>
                     )}
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm text-sovry-green font-medium mb-1">{selectedIPAsset.name}</p>
+                      <p className="text-sm text-sovry-crimson font-medium mb-1">{selectedIPAsset.name}</p>
                       <p className="text-xs text-zinc-400">
                         Royalty Token: {selectedIPAsset.royaltyVaultAddress.slice(0, 10)}...
                       </p>
@@ -969,8 +969,8 @@ export default function CreatePage() {
                   </div>
                 </div>
 
-                <div className="p-4 bg-sovry-green/10 border border-sovry-green/30 rounded-xl">
-                  <h3 className="font-medium text-sovry-green mb-2">Story Protocol Pair Details</h3>
+                <div className="p-4 bg-sovry-crimson/10 border border-sovry-crimson/30 rounded-xl">
+                  <h3 className="font-medium text-sovry-crimson mb-2">Story Protocol Pair Details</h3>
                   <p className="text-sm text-zinc-400 leading-relaxed">
                     Royalty Token + WIP pair on SovryRouter will be created automatically when this launch graduates to
                     the DEX.
@@ -978,10 +978,10 @@ export default function CreatePage() {
                 </div>
 
                 <div className="space-y-4">
-                  <div className="p-4 bg-zinc-800/30 border border-sovry-green/30 rounded-lg">
+                  <div className="p-4 bg-zinc-800/30 border border-sovry-crimson/30 rounded-lg">
                     <div className="flex items-center space-x-2 mb-2">
-                      <Sparkles className="h-4 w-4 text-sovry-green" />
-                      <p className="text-sm font-medium text-sovry-green">Launch on SovryLaunchpad</p>
+                      <Sparkles className="h-4 w-4 text-sovry-crimson" />
+                      <p className="text-sm font-medium text-sovry-crimson">Launch on SovryLaunchpad</p>
                     </div>
                     <p className="text-sm text-zinc-400 leading-relaxed">
                       Launch your royalty token on a bonding curve. No need to provide initial IP liquidity – SovryLaunchpad
@@ -1025,7 +1025,7 @@ export default function CreatePage() {
                           }}
                         />
                         {launchLogoFile && (
-                          <div className="absolute top-2 right-2 px-2 py-1 bg-sovry-green/90 rounded text-xs text-black font-medium">
+                          <div className="absolute top-2 right-2 px-2 py-1 bg-sovry-crimson/90 rounded text-xs text-black font-medium">
                             Custom Upload
                           </div>
                         )}
@@ -1173,41 +1173,41 @@ export default function CreatePage() {
                   <div className="mt-4 space-y-2 text-sm text-zinc-400">
                     <div className="flex items-center gap-2">
                       <span className="text-zinc-500 font-medium">1.</span>
-                      <CheckCircle className="h-3 w-3 text-sovry-green" />
+                      <CheckCircle className="h-3 w-3 text-sovry-crimson" />
                       <span>IP Asset Registered (from Story Protocol)</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <span className="text-zinc-500 font-medium">2.</span>
                       {needsUnlock ? (
                         unlockingTokens === selectedIPAsset.ipId ? (
-                          <Loader2 className="h-3 w-3 animate-spin text-sovry-green" />
+                          <Loader2 className="h-3 w-3 animate-spin text-sovry-crimson" />
                         ) : (
-                          <span className="text-sovry-green">⏳</span>
+                          <span className="text-sovry-crimson">⏳</span>
                         )
                       ) : (
-                        <CheckCircle className="h-3 w-3 text-sovry-green" />
+                        <CheckCircle className="h-3 w-3 text-sovry-crimson" />
                       )}
                       <span>Minting Royalty Tokens / unlock token</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <span className="text-zinc-500 font-medium">3.</span>
                       {creatingPool === selectedIPAsset.ipId && launchStep === 3 ? (
-                        <Loader2 className="h-3 w-3 animate-spin text-sovry-green" />
+                        <Loader2 className="h-3 w-3 animate-spin text-sovry-crimson" />
                       ) : launchStep !== null && launchStep > 3 ? (
-                        <CheckCircle className="h-3 w-3 text-sovry-green" />
+                        <CheckCircle className="h-3 w-3 text-sovry-crimson" />
                       ) : (
-                        <span className="text-sovry-green">⏳</span>
+                        <span className="text-sovry-crimson">⏳</span>
                       )}
                       <span>Approving Launchpad...</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <span className="text-zinc-500 font-medium">4.</span>
                       {creatingPool === selectedIPAsset.ipId && launchStep === 4 ? (
-                        <Loader2 className="h-3 w-3 animate-spin text-sovry-green" />
+                        <Loader2 className="h-3 w-3 animate-spin text-sovry-crimson" />
                       ) : launchStep !== null && launchStep >= 4 ? (
-                        <CheckCircle className="h-3 w-3 text-sovry-green" />
+                        <CheckCircle className="h-3 w-3 text-sovry-crimson" />
                       ) : (
-                        <span className="text-sovry-green">⏳</span>
+                        <span className="text-sovry-crimson">⏳</span>
                       )}
                       <span>
                         Launching Market...
@@ -1233,7 +1233,7 @@ export default function CreatePage() {
             href="https://story.foundation/"
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 text-sovry-green hover:text-sovry-green/80 hover:underline transition-colors"
+            className="inline-flex items-center gap-2 text-sovry-crimson hover:text-sovry-crimson/80 hover:underline transition-colors"
           >
             <PlusCircle className="h-4 w-4" />
             <span>Don't see your IP? Register an IP now.</span>

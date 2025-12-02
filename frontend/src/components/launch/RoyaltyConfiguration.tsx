@@ -54,7 +54,7 @@ export function RoyaltyConfiguration({
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.8, opacity: 0 }}
             transition={{ duration: 0.3, ease: "easeOut" }}
-            className="text-7xl font-bold text-sovry-green tabular-nums"
+            className="text-7xl font-bold text-sovry-crimson tabular-nums"
           >
             {clampedValue}%
           </motion.div>
@@ -89,8 +89,8 @@ export function RoyaltyConfiguration({
                 className={cn(
                   "flex-1 transition-all",
                   isPresetActive(preset)
-                    ? "bg-sovry-green text-black"
-                    : "border-zinc-700 hover:border-sovry-green/50"
+                    ? "bg-sovry-crimson text-black"
+                    : "border-zinc-700 hover:border-sovry-crimson/50"
                 )}
               >
                 {preset}%
@@ -137,7 +137,7 @@ export function RoyaltyConfiguration({
           <div className="space-y-2">
             <div className="flex items-center justify-between text-xs">
               <span className="text-zinc-400">Locked in Curve</span>
-              <span className="font-medium text-sovry-green tabular-nums">
+              <span className="font-medium text-sovry-crimson tabular-nums">
                 {clampedValue}%
               </span>
             </div>
@@ -146,7 +146,7 @@ export function RoyaltyConfiguration({
                 initial={{ width: 0 }}
                 animate={{ width: `${clampedValue}%` }}
                 transition={{ duration: 0.5, ease: "easeOut" }}
-                className="h-full bg-sovry-green rounded-full"
+                className="h-full bg-sovry-crimson rounded-full"
               />
             </div>
           </div>

@@ -27,10 +27,10 @@ interface AssetCardProps {
 const categoryColors: Record<string, string> = {
   Art: "bg-sovry-pink/10 text-sovry-pink border-sovry-pink/20",
   Music: "bg-sovry-pink/10 text-sovry-pink border-sovry-pink/20",
-  Gaming: "bg-sovry-green/10 text-sovry-green border-sovry-green/20",
+  Gaming: "bg-sovry-crimson/10 text-sovry-crimson border-sovry-crimson/20",
   Photography: "bg-sovry-pink/10 text-sovry-pink border-sovry-pink/20",
-  "3D Art": "bg-sovry-green/10 text-sovry-green border-sovry-green/20",
-  "Commercial IP": "bg-sovry-green/10 text-sovry-green border-sovry-green/20",
+  "3D Art": "bg-sovry-crimson/10 text-sovry-crimson border-sovry-crimson/20",
+  "Commercial IP": "bg-sovry-crimson/10 text-sovry-crimson border-sovry-crimson/20",
   "Personal IP": "bg-sovry-pink/10 text-sovry-pink border-sovry-pink/20",
   "IP Asset": "bg-zinc-800/30 text-zinc-400 border-zinc-700",
 };
@@ -65,10 +65,10 @@ export default function AssetCard({ launch }: AssetCardProps) {
   return (
     <Link
       href={`/pool/${address}`}
-      className="group relative rounded-xl border border-zinc-800 overflow-hidden bg-zinc-900/50 backdrop-blur-sm hover:border-sovry-green/50 transition-all duration-300 hover:shadow-lg hover:shadow-sovry-green/10"
+      className="group relative rounded-xl border border-zinc-800 overflow-hidden bg-zinc-900/50 backdrop-blur-sm hover:border-sovry-crimson/50 transition-all duration-300 hover:shadow-lg hover:shadow-sovry-crimson/10"
     >
       {/* Image Section - 16:9 Aspect Ratio */}
-      <div className="relative w-full aspect-video bg-gradient-to-br from-sovry-green/20 via-sovry-green/10 to-sovry-pink/20 overflow-hidden">
+      <div className="relative w-full aspect-video bg-gradient-to-br from-sovry-crimson/20 via-sovry-crimson/10 to-sovry-pink/20 overflow-hidden">
         {launch.imageUrl || launch.ipId ? (
           <div className="absolute inset-0">
             <img

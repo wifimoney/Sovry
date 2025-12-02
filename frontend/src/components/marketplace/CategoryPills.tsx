@@ -32,7 +32,7 @@ export function CategoryPills({ selectedCategory, onCategoryChange }: CategoryPi
             className={cn(
               "cursor-pointer px-4 py-1.5 text-sm font-medium transition-all duration-200",
               isActive
-                ? "bg-sovry-green/20 text-sovry-green border-sovry-green/50 shadow-[0_0_12px_rgba(57,255,20,0.3)]"
+                ? "bg-sovry-crimson/20 text-sovry-crimson border-sovry-crimson/50 shadow-[0_0_12px_rgba(57,255,20,0.3)]"
                 : "bg-zinc-900/50 text-zinc-400 border-zinc-800 hover:border-zinc-700 hover:text-zinc-50"
             )}
           >

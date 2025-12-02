@@ -27,7 +27,7 @@ export function LaunchCard({
   return (
     <Card
       className={cn(
-        "overflow-hidden transition-all hover:border-sovry-green/50 hover:shadow-lg hover:shadow-sovry-green/10 flex flex-col aspect-[2/3]",
+        "overflow-hidden transition-all hover:border-sovry-crimson/50 hover:shadow-lg hover:shadow-sovry-crimson/10 flex flex-col aspect-[2/3]",
         onClick && "cursor-pointer",
         className
       )}

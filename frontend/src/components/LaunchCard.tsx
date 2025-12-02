@@ -63,8 +63,8 @@ function LaunchCardComponent({
         <Card
           className={cn(
             "overflow-hidden rounded-xl border shadow-sm transition-all duration-300 ease-in-out",
-            "hover:scale-105 hover:shadow-xl hover:shadow-sovry-green/20 hover:border-sovry-green/50",
-            "focus-within:ring-2 focus-within:ring-sovry-green focus-within:ring-offset-2 focus-within:ring-offset-zinc-950",
+            "hover:scale-105 hover:shadow-xl hover:shadow-sovry-crimson/20 hover:border-sovry-crimson/50",
+            "focus-within:ring-2 focus-within:ring-sovry-crimson focus-within:ring-offset-2 focus-within:ring-offset-zinc-950",
             "grid grid-rows-2 h-full min-h-[300px] sm:min-h-[400px] cursor-pointer",
             className
           )}
@@ -175,7 +175,7 @@ function LaunchCardComponent({
                   e.stopPropagation()
                 }
               }}
-              className="flex items-center gap-1.5 group focus:outline-none focus:ring-2 focus:ring-sovry-green focus:ring-offset-2 focus:ring-offset-zinc-900 rounded"
+              className="flex items-center gap-1.5 group focus:outline-none focus:ring-2 focus:ring-sovry-crimson focus:ring-offset-2 focus:ring-offset-zinc-900 rounded"
               aria-label={`View profile of creator ${truncateAddress(createdBy)}`}
             >
               <User className="h-3 w-3 text-muted-foreground group-hover:text-zinc-300 transition-colors" aria-hidden="true" />

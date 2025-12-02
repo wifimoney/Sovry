@@ -22,16 +22,16 @@ export function TrendingFloat({
   return (
     <div className="absolute top-20 right-4 lg:right-8 xl:right-12 z-30 hidden lg:block max-w-[calc(100vw-2rem)] lg:max-w-none">
       <Link href="/pool/trending">
-        <div className="w-64 lg:w-72 bg-zinc-900/50 backdrop-blur-md border border-zinc-800 rounded-xl p-4 shadow-xl hover:border-sovry-green/50 transition-all duration-300 group cursor-pointer">
+        <div className="w-64 lg:w-72 bg-zinc-900/50 backdrop-blur-md border border-zinc-800 rounded-xl p-4 shadow-xl hover:border-sovry-crimson/50 transition-all duration-300 group cursor-pointer">
           {/* Header */}
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
-              <TrendingUp className="h-4 w-4 text-sovry-green" />
+              <TrendingUp className="h-4 w-4 text-sovry-crimson" />
               <span className="text-xs font-semibold text-zinc-400 uppercase tracking-wide">
                 Trending Now
               </span>
             </div>
-            <ArrowRight className="h-4 w-4 text-zinc-400 group-hover:text-sovry-green transition-colors" />
+            <ArrowRight className="h-4 w-4 text-zinc-400 group-hover:text-sovry-crimson transition-colors" />
           </div>
 
           {/* Asset Info */}
@@ -45,8 +45,8 @@ export function TrendingFloat({
                 />
               </div>
             ) : (
-              <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-sovry-green/20 to-sovry-pink/20 border border-zinc-800 flex items-center justify-center flex-shrink-0">
-                <span className="text-lg font-bold text-sovry-green">{assetSymbol[0]}</span>
+              <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-sovry-crimson/20 to-sovry-pink/20 border border-zinc-800 flex items-center justify-center flex-shrink-0">
+                <span className="text-lg font-bold text-sovry-crimson">{assetSymbol[0]}</span>
               </div>
             )}
             <div className="flex-1 min-w-0">
@@ -67,7 +67,7 @@ export function TrendingFloat({
             </div>
             <div className="text-right">
               <div className="text-xs text-zinc-400 mb-1">24h Change</div>
-              <div className={`text-sm font-semibold ${priceChange >= 0 ? 'text-sovry-green' : 'text-sovry-pink'}`}>
+              <div className={`text-sm font-semibold ${priceChange >= 0 ? 'text-sovry-crimson' : 'text-sovry-pink'}`}>
                 {priceChange >= 0 ? '+' : ''}{priceChange}%
               </div>
             </div>

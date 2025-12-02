@@ -143,7 +143,7 @@ export default function PortfolioPage() {
                   <p className="text-zinc-400 text-sm uppercase tracking-wide mb-1">Net Worth</p>
                   <p className="text-2xl font-bold text-zinc-50">${calculateNetWorth().toFixed(2)}</p>
                 </div>
-                <DollarSign className="h-8 w-8 text-sovry-green" />
+                <DollarSign className="h-8 w-8 text-sovry-crimson" />
               </div>
             </CardContent>
           </Card>
@@ -155,7 +155,7 @@ export default function PortfolioPage() {
                   <p className="text-zinc-400 text-sm uppercase tracking-wide mb-1">Total Holdings</p>
                   <p className="text-2xl font-bold text-zinc-50">{assets.length}</p>
                 </div>
-                <Coins className="h-8 w-8 text-sovry-green" />
+                <Coins className="h-8 w-8 text-sovry-crimson" />
               </div>
             </CardContent>
           </Card>
@@ -177,7 +177,7 @@ export default function PortfolioPage() {
         {loading ? (
           <Card className="bg-zinc-900/50 backdrop-blur-sm border border-zinc-800 rounded-xl">
             <CardContent className="p-8 text-center">
-              <Loader2 className="h-8 w-8 mx-auto mb-4 animate-spin text-sovry-green" />
+              <Loader2 className="h-8 w-8 mx-auto mb-4 animate-spin text-sovry-crimson" />
               <p className="text-zinc-400">Loading your holdings...</p>
             </CardContent>
           </Card>
@@ -197,7 +197,7 @@ export default function PortfolioPage() {
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {assets.map((asset) => (
-              <Card key={asset.id} className="bg-zinc-900/50 backdrop-blur-sm border border-zinc-800 rounded-xl hover:border-sovry-green/50 transition-colors">
+              <Card key={asset.id} className="bg-zinc-900/50 backdrop-blur-sm border border-zinc-800 rounded-xl hover:border-sovry-crimson/50 transition-colors">
                 <CardHeader>
                   <div className="flex items-center gap-4">
                     {asset.image && (
@@ -225,7 +225,7 @@ export default function PortfolioPage() {
                     </div>
                     <div className="flex justify-between">
                       <span className="text-sm text-zinc-400">APY</span>
-                      <span className="text-sm font-semibold text-sovry-green">{asset.apy}</span>
+                      <span className="text-sm font-semibold text-sovry-crimson">{asset.apy}</span>
                     </div>
                     {asset.claimableRevenue > 0 && (
                       <div className="pt-3 border-t border-zinc-800">

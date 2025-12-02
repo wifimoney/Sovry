@@ -173,7 +173,7 @@ export function SwapInput({
           size="sm"
           onClick={handleMaxClick}
           disabled={isDisabled || !balance || parseFloat(balance.toString()) <= 0}
-          className="h-6 px-2 text-xs text-sovry-green hover:text-sovry-green/80 hover:bg-sovry-green/10"
+          className="h-6 px-2 text-xs text-sovry-crimson hover:text-sovry-crimson/80 hover:bg-sovry-crimson/10"
         >
           MAX
         </Button>

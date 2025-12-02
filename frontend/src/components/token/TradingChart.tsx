@@ -215,7 +215,7 @@ function TradingChartComponent({
         {isLoading && !chartInitialized && (
           <div className="absolute inset-0 flex items-center justify-center bg-zinc-900/50 rounded-lg z-10">
             <div className="flex flex-col items-center gap-2">
-              <Loader2 className="h-6 w-6 animate-spin text-sovry-green" />
+              <Loader2 className="h-6 w-6 animate-spin text-sovry-crimson" />
               <p className="text-xs text-zinc-400">Loading chart data...</p>
             </div>
           </div>
@@ -253,7 +253,7 @@ function TradingChartComponent({
         {isLoading && chartInitialized && (
           <div className="absolute top-2 right-2 z-10">
             <div className="flex items-center gap-2 px-2 py-1 bg-zinc-900/90 backdrop-blur-sm rounded border border-zinc-800">
-              <Loader2 className="h-3 w-3 animate-spin text-sovry-green" />
+              <Loader2 className="h-3 w-3 animate-spin text-sovry-crimson" />
               <span className="text-xs text-zinc-400">Refreshing...</span>
             </div>
           </div>

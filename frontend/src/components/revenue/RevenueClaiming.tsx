@@ -219,10 +219,10 @@ export function RevenueClaiming() {
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center gap-3">
-              <DollarSign className="h-8 w-8 text-sovry-green" />
+              <DollarSign className="h-8 w-8 text-sovry-crimson" />
               <div>
                 <p className="text-sm text-zinc-400 uppercase tracking-wide">Total Claimable</p>
-                <p className="text-2xl font-bold text-sovry-green">${totalClaimable.toLocaleString()}</p>
+                <p className="text-2xl font-bold text-sovry-crimson">${totalClaimable.toLocaleString()}</p>
               </div>
             </div>
           </CardContent>
@@ -231,10 +231,10 @@ export function RevenueClaiming() {
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center gap-3">
-              <TrendingUp className="h-8 w-8 text-sovry-green" />
+              <TrendingUp className="h-8 w-8 text-sovry-crimson" />
               <div>
                 <p className="text-sm text-zinc-400 uppercase tracking-wide">Total Earned</p>
-                <p className="text-2xl font-bold text-sovry-green">${totalEarned.toLocaleString()}</p>
+                <p className="text-2xl font-bold text-sovry-crimson">${totalEarned.toLocaleString()}</p>
               </div>
             </div>
           </CardContent>
@@ -270,7 +270,7 @@ export function RevenueClaiming() {
                     key={position.assetId}
                     className={`p-4 border rounded-lg cursor-pointer transition-colors ${
                       selectedAsset.id === position.assetId
-                        ? "border-sovry-green/50 bg-sovry-green/10"
+                        ? "border-sovry-crimson/50 bg-sovry-crimson/10"
                         : "border-zinc-800 hover:border-zinc-700"
                     }`}
                     onClick={() => setSelectedAsset(IP_ASSETS.find(asset => asset.id === position.assetId) || IP_ASSETS[0])}
@@ -281,7 +281,7 @@ export function RevenueClaiming() {
                         <p className="text-sm text-zinc-400">{position.symbol} • {position.balance} tokens</p>
                       </div>
                       <div className="text-right">
-                        <p className="font-medium text-sovry-green">${position.claimableRevenue}</p>
+                        <p className="font-medium text-sovry-crimson">${position.claimableRevenue}</p>
                         <p className="text-xs text-zinc-400">claimable</p>
                       </div>
                     </div>
@@ -296,7 +296,7 @@ export function RevenueClaiming() {
               <div className="space-y-1 text-sm">
                 <div className="flex justify-between">
                   <span className="text-zinc-400">Revenue Rate:</span>
-                  <span className="text-sovry-green font-medium">{selectedAsset.revenueRate}</span>
+                  <span className="text-sovry-crimson font-medium">{selectedAsset.revenueRate}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-zinc-400">Total Revenue:</span>
@@ -317,7 +317,7 @@ export function RevenueClaiming() {
             )}
             
             {success && (
-              <Alert className="border-sovry-green/30 bg-sovry-green/10">
+              <Alert className="border-sovry-crimson/30 bg-sovry-crimson/10">
                 <AlertDescription className="text-zinc-400">{success}</AlertDescription>
               </Alert>
             )}
@@ -366,7 +366,7 @@ export function RevenueClaiming() {
                         <p className="text-xs text-zinc-400">{event.timestamp}</p>
                       </div>
                       <div className="text-right">
-                        <p className="font-medium text-sovry-green">${event.amount}</p>
+                        <p className="font-medium text-sovry-crimson">${event.amount}</p>
                       </div>
                     </div>
                   ))}
@@ -375,12 +375,12 @@ export function RevenueClaiming() {
 
               {/* Stats */}
               <div className="grid grid-cols-2 gap-4 text-sm">
-                <div className="p-3 bg-sovry-green/10 border border-sovry-green/30 rounded-lg">
-                  <p className="text-sovry-green font-medium">Avg. Daily</p>
+                <div className="p-3 bg-sovry-crimson/10 border border-sovry-crimson/30 rounded-lg">
+                  <p className="text-sovry-crimson font-medium">Avg. Daily</p>
                   <p className="text-lg font-bold text-zinc-50">${(totalEarned / 30).toFixed(2)}</p>
                 </div>
-                <div className="p-3 bg-sovry-green/10 border border-sovry-green/30 rounded-lg">
-                  <p className="text-sovry-green font-medium">This Month</p>
+                <div className="p-3 bg-sovry-crimson/10 border border-sovry-crimson/30 rounded-lg">
+                  <p className="text-sovry-crimson font-medium">This Month</p>
                   <p className="text-lg font-bold text-zinc-50">${(totalEarned * 0.1).toFixed(2)}</p>
                 </div>
               </div>
@@ -397,8 +397,8 @@ export function RevenueClaiming() {
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="text-center">
-              <div className="w-12 h-12 bg-sovry-green/20 border border-sovry-green/30 rounded-full flex items-center justify-center mx-auto mb-3">
-                <span className="text-sovry-green font-bold">1</span>
+              <div className="w-12 h-12 bg-sovry-crimson/20 border border-sovry-crimson/30 rounded-full flex items-center justify-center mx-auto mb-3">
+                <span className="text-sovry-crimson font-bold">1</span>
               </div>
               <h4 className="font-semibold mb-2 text-zinc-50">Hold rIP Tokens</h4>
               <p className="text-sm text-zinc-400 leading-relaxed">
@@ -407,8 +407,8 @@ export function RevenueClaiming() {
             </div>
             
             <div className="text-center">
-              <div className="w-12 h-12 bg-sovry-green/20 border border-sovry-green/30 rounded-full flex items-center justify-center mx-auto mb-3">
-                <span className="text-sovry-green font-bold">2</span>
+              <div className="w-12 h-12 bg-sovry-crimson/20 border border-sovry-crimson/30 rounded-full flex items-center justify-center mx-auto mb-3">
+                <span className="text-sovry-crimson font-bold">2</span>
               </div>
               <h4 className="font-semibold mb-2 text-zinc-50">Revenue Accumulates</h4>
               <p className="text-sm text-zinc-400 leading-relaxed">
@@ -417,8 +417,8 @@ export function RevenueClaiming() {
             </div>
             
             <div className="text-center">
-              <div className="w-12 h-12 bg-sovry-green/20 border border-sovry-green/30 rounded-full flex items-center justify-center mx-auto mb-3">
-                <span className="text-sovry-green font-bold">3</span>
+              <div className="w-12 h-12 bg-sovry-crimson/20 border border-sovry-crimson/30 rounded-full flex items-center justify-center mx-auto mb-3">
+                <span className="text-sovry-crimson font-bold">3</span>
               </div>
               <h4 className="font-semibold mb-2 text-zinc-50">Claim Your Share</h4>
               <p className="text-sm text-zinc-400 leading-relaxed">

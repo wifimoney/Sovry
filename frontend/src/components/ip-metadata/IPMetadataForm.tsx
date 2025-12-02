@@ -357,7 +357,7 @@ export default function IPMetadataForm({
       <Card className="bg-zinc-900/50 backdrop-blur-sm border border-zinc-800">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <ImageIcon className="h-5 w-5 text-sovry-green" />
+            <ImageIcon className="h-5 w-5 text-sovry-crimson" />
             Register IP on Story Protocol
           </CardTitle>
         </CardHeader>
@@ -365,14 +365,14 @@ export default function IPMetadataForm({
           {/* Registration Status */}
           {registrationStatus === 'uploading' && (
             <div className="flex flex-col items-center gap-4 py-8">
-              <Loader2 className="h-8 w-8 animate-spin text-sovry-green" />
+              <Loader2 className="h-8 w-8 animate-spin text-sovry-crimson" />
               <p className="text-sm text-zinc-400">Uploading metadata to IPFS...</p>
             </div>
           )}
 
           {registrationStatus === 'registering' && (
             <div className="flex flex-col items-center gap-4 py-8">
-              <Loader2 className="h-8 w-8 animate-spin text-sovry-green" />
+              <Loader2 className="h-8 w-8 animate-spin text-sovry-crimson" />
               <p className="text-sm text-zinc-400 font-medium">Registering IP on Story Protocol...</p>
             </div>
           )}
@@ -380,7 +380,7 @@ export default function IPMetadataForm({
           {registrationStatus === 'confirming' && txHash && (
             <div className="space-y-4">
               <div className="flex flex-col items-center gap-4 py-4">
-                <Loader2 className="h-8 w-8 animate-spin text-sovry-green" />
+                <Loader2 className="h-8 w-8 animate-spin text-sovry-crimson" />
                 <p className="text-sm text-zinc-400 font-medium">Waiting for transaction confirmation...</p>
               </div>
               <div className="p-4 bg-zinc-800/50 rounded-lg border border-zinc-700">
@@ -390,7 +390,7 @@ export default function IPMetadataForm({
                     href={`${BLOCK_EXPLORER_URL}${txHash}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center gap-2 text-sm text-sovry-green hover:underline"
+                    className="flex items-center gap-2 text-sm text-sovry-crimson hover:underline"
                   >
                     <span className="font-mono">
                       {txHash.slice(0, 10)}...{txHash.slice(-8)}
@@ -405,8 +405,8 @@ export default function IPMetadataForm({
           {registrationStatus === 'success' && (
             <div className="space-y-4">
               <div className="flex flex-col items-center gap-4 py-4">
-                <div className="p-3 bg-sovry-green/20 rounded-full border border-sovry-green/30">
-                  <CheckCircle className="h-8 w-8 text-sovry-green" />
+                <div className="p-3 bg-sovry-crimson/20 rounded-full border border-sovry-crimson/30">
+                  <CheckCircle className="h-8 w-8 text-sovry-crimson" />
                 </div>
                 <div className="text-center">
                   <p className="text-lg font-semibold text-zinc-50">IP Registered Successfully!</p>
@@ -426,7 +426,7 @@ export default function IPMetadataForm({
                       href={`${BLOCK_EXPLORER_URL}${txHash}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex items-center gap-2 text-sm text-sovry-green hover:underline"
+                      className="flex items-center gap-2 text-sm text-sovry-crimson hover:underline"
                     >
                       <span className="font-mono">
                         {txHash.slice(0, 10)}...{txHash.slice(-8)}
@@ -452,7 +452,7 @@ export default function IPMetadataForm({
                         href={`${BLOCK_EXPLORER_URL}${txHash}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex items-center gap-2 text-sm text-sovry-green hover:underline"
+                        className="flex items-center gap-2 text-sm text-sovry-crimson hover:underline"
                       >
                         <span className="font-mono">
                           {txHash.slice(0, 10)}...{txHash.slice(-8)}
@@ -496,7 +496,7 @@ export default function IPMetadataForm({
     <Card className="bg-zinc-900/50 backdrop-blur-sm border border-zinc-800">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <ImageIcon className="h-5 w-5 text-sovry-green" />
+          <ImageIcon className="h-5 w-5 text-sovry-crimson" />
           IP Metadata Collection
           {enableRegistration && (
             <span className="ml-auto text-sm text-zinc-400 font-normal">
@@ -629,7 +629,7 @@ export default function IPMetadataForm({
                 className={cn(
                   "border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors",
                   isDragActive
-                    ? "border-sovry-green bg-sovry-green/10"
+                    ? "border-sovry-crimson bg-sovry-crimson/10"
                     : "border-zinc-700 hover:border-zinc-600 bg-zinc-900/50",
                   errors.image && "border-sovry-pink"
                 )}
@@ -637,7 +637,7 @@ export default function IPMetadataForm({
                 <input {...getInputProps()} />
                 {isProcessingImage ? (
                   <div className="flex flex-col items-center gap-2">
-                    <Loader2 className="h-8 w-8 animate-spin text-sovry-green" />
+                    <Loader2 className="h-8 w-8 animate-spin text-sovry-crimson" />
                     <p className="text-sm text-zinc-400">Processing image...</p>
                   </div>
                 ) : (

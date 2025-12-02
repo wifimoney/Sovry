@@ -586,14 +586,14 @@ export default function SwapInterface({
                 </div>
                 <div className="w-full h-2 rounded-full bg-zinc-800 overflow-hidden">
                   <div
-                    className="h-2 bg-sovry-green"
+                    className="h-2 bg-sovry-crimson"
                     style={{ width: `${bondingProgress}%` }}
                   />
                 </div>
               </div>
             )}
             {launchpadMode === "dex" && launchInfo?.graduated && (
-              <div className="mt-3 inline-flex items-center gap-2 px-3 py-1 rounded-full border border-sovry-green/40 bg-sovry-green/10 text-xs text-sovry-green">
+              <div className="mt-3 inline-flex items-center gap-2 px-3 py-1 rounded-full border border-sovry-crimson/40 bg-sovry-crimson/10 text-xs text-sovry-crimson">
                 <CheckCircle className="h-3 w-3" />
                 Graduated to DEX (Sovry Router)
               </div>
@@ -610,7 +610,7 @@ export default function SwapInterface({
             )}
 
             {selectedPool && (
-              <div className="p-3 bg-sovry-green/10 border border-sovry-green/30 rounded-lg">
+              <div className="p-3 bg-sovry-crimson/10 border border-sovry-crimson/30 rounded-lg">
                 <p className="text-sm text-zinc-50 font-medium">
                   Pool: {selectedPool.token0.symbol} / {selectedPool.token1.symbol}
                 </p>
@@ -618,7 +618,7 @@ export default function SwapInterface({
                   Reserves: {parseFloat(selectedPool.reserve0).toFixed(2)} {selectedPool.token0.symbol} • {parseFloat(selectedPool.reserve1).toFixed(2)} {selectedPool.token1.symbol}
                 </p>
                 {(fromToken === "IP" || toToken === "IP") && (
-                  <p className="text-xs text-sovry-green mt-1">
+                  <p className="text-xs text-sovry-crimson mt-1">
                     ⚡ Native IP will be auto-wrapped to WIP for this swap
                   </p>
                 )}
@@ -763,8 +763,8 @@ export default function SwapInterface({
                 )}
                 
                 {simulationSuccess && (
-                  <Alert className="border-sovry-green/30 bg-sovry-green/10">
-                    <CheckCircle className="h-4 w-4 text-sovry-green" />
+                  <Alert className="border-sovry-crimson/30 bg-sovry-crimson/10">
+                    <CheckCircle className="h-4 w-4 text-sovry-crimson" />
                     <AlertDescription className="text-zinc-400">
                       Swap calculation complete! Ready to execute.
                     </AlertDescription>
