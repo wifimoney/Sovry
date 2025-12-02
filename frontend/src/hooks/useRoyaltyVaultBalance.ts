@@ -50,3 +50,4 @@ export function useRoyaltyVaultBalance(vaultAddress: string | undefined) {
   return { balance, loading, error };
 }
 
+

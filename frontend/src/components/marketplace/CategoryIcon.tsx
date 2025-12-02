@@ -33,3 +33,4 @@ export function CategoryIcon({ category, className, size = 16 }: CategoryIconPro
   return <Palette className={cn("text-white", className)} size={size} />;
 }
 
+
